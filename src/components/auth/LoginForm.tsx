@@ -62,8 +62,8 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup }) => {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader className="space-y-1">
+    <Card className="w-full border-none shadow-lg bg-white/80 backdrop-blur-sm">
+      <CardHeader className="space-y-1 pb-4">
         <CardTitle className="text-2xl font-bold text-center">Welcome back</CardTitle>
         <CardDescription className="text-center">
           Sign in to your account to continue
