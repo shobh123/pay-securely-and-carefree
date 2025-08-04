@@ -29,8 +29,8 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
-      <div className="container mx-auto px-4 py-6 max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 overflow-y-auto">
+      <div className="container mx-auto px-4 py-6 max-w-md min-h-full">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>

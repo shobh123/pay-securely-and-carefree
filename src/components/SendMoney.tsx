@@ -21,6 +21,9 @@ import {
 } from 'lucide-react';
 import ReviewSystem from './ReviewSystem';
 import FraudReport from './FraudReport';
+import ComplaintStatus from './ComplaintStatus';
+import { useTransaction } from '@/contexts/TransactionContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface SendMoneyProps {
   onBack: () => void;
@@ -31,6 +34,9 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [showReviews, setShowReviews] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { addTransaction, deductBalance } = useTransaction();
+  const { toast } = useToast();
 
   const recentContacts = [
     { 
@@ -86,9 +92,85 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
       fraudCount: 0,
       criminalCount: 1
     },
+    { 
+      id: '5', 
+      name: 'Lisa Anderson', 
+      email: 'lisa@email.com', 
+      avatar: 'LA', 
+      lastSent: '$200.00',
+      rating: 4.7,
+      reviewCount: 18,
+      trustScore: 'high',
+      spamCount: 0,
+      fraudCount: 0,
+      criminalCount: 0
+    },
   ];
 
   const selectedContactData = recentContacts.find(contact => contact.id === selectedContact);
+
+  const handleSendMoney = async () => {
+    if (!amount || !selectedContact || !selectedContactData) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter an amount and select a recipient.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const amountNumber = parseFloat(amount);
+    if (isNaN(amountNumber) || amountNumber <= 0) {
+      toast({
+        title: "Invalid Amount",
+        description: "Please enter a valid amount.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    // Attempt to deduct balance
+    const success = deductBalance(amountNumber);
+    if (!success) {
+      toast({
+        title: "Insufficient Balance",
+        description: "You don't have enough balance for this transaction.",
+        variant: "destructive"
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Add transaction to history
+    addTransaction({
+      type: 'sent',
+      amount: amountNumber,
+      recipient: selectedContactData.name,
+      description: note || `Money sent to ${selectedContactData.name}`,
+      category: 'Transfer',
+      status: 'completed'
+    });
+
+    // Simulate processing delay
+    setTimeout(() => {
+      toast({
+        title: "Money Sent Successfully",
+        description: `$${amountNumber.toFixed(2)} has been sent to ${selectedContactData.name}`,
+      });
+      
+      // Reset form
+      setAmount('');
+      setNote('');
+      setSelectedContact(null);
+      setShowReviews(false);
+      setIsSubmitting(false);
+      
+      // Navigate back to home
+      onBack();
+    }, 2000);
+  };
 
   const getTrustScoreColor = (score: string) => {
     switch (score) {
@@ -113,8 +195,8 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
   const quickAmounts = [10, 25, 50, 100];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
-      <div className="container mx-auto px-4 py-6 max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 overflow-y-auto">
+      <div className="container mx-auto px-4 py-6 max-w-md min-h-full">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <Button variant="ghost" size="sm" onClick={onBack}>
@@ -161,22 +243,22 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
         <div className="grid grid-cols-3 gap-3 mb-6">
           <Card className="cursor-pointer hover:shadow-md transition-shadow">
             <CardContent className="p-4 text-center">
-              <QrCode className="w-6 h-6 mx-auto mb-2 text-purple-600" />
-              <p className="text-xs font-medium">QR Code</p>
-            </CardContent>
-          </Card>
-          
-          <Card className="cursor-pointer hover:shadow-md transition-shadow">
-            <CardContent className="p-4 text-center">
               <Phone className="w-6 h-6 mx-auto mb-2 text-green-600" />
-              <p className="text-xs font-medium">Phone</p>
+              <p className="text-xs font-medium">Phone Number</p>
             </CardContent>
           </Card>
           
           <Card className="cursor-pointer hover:shadow-md transition-shadow">
             <CardContent className="p-4 text-center">
-              <Mail className="w-6 h-6 mx-auto mb-2 text-blue-600" />
-              <p className="text-xs font-medium">Email</p>
+              <Zap className="w-6 h-6 mx-auto mb-2 text-orange-600" />
+              <p className="text-xs font-medium">UPI</p>
+            </CardContent>
+          </Card>
+          
+          <Card className="cursor-pointer hover:shadow-md transition-shadow">
+            <CardContent className="p-4 text-center">
+              <CreditCard className="w-6 h-6 mx-auto mb-2 text-blue-600" />
+              <p className="text-xs font-medium">Bank Account</p>
             </CardContent>
           </Card>
         </div>
@@ -205,7 +287,7 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
                 }}
                 className={`p-3 rounded-lg cursor-pointer transition-colors ${
                   selectedContact === contact.id 
-                    ? 'bg-purple-50 border border-purple-200' 
+                    ? 'bg-gradient-to-r from-purple-100 to-blue-100 border-2 border-purple-300 shadow-md' 
                     : 'hover:bg-gray-50'
                 }`}
               >
@@ -260,6 +342,19 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
                 </div>
               </div>
             ))}
+            
+            {/* Add New Contact Button */}
+            <div className="p-3 rounded-lg border-2 border-dashed border-gray-300 hover:border-purple-300 cursor-pointer transition-colors">
+              <div className="flex items-center justify-center gap-3">
+                <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                  <Plus className="w-5 h-5 text-gray-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm text-gray-700">Add New Contact</p>
+                  <p className="text-xs text-gray-500">Add someone to your contacts</p>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -287,16 +382,19 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
         {/* Action Buttons */}
         <div className="space-y-3">
           {selectedContactData && (
-            <div className="flex gap-3">
-              <FraudReport 
-                recipientId={selectedContactData.id}
-                recipientName={selectedContactData.name}
-                amount={amount || '0.00'}
-              />
+            <div className="space-y-3">
+              <div className="flex gap-3">
+                <FraudReport 
+                  recipientId={selectedContactData.id}
+                  recipientName={selectedContactData.name}
+                  amount={amount || '0.00'}
+                />
+                <ComplaintStatus />
+              </div>
               <Button 
                 variant="outline"
                 onClick={() => setShowReviews(!showReviews)}
-                className="flex-1"
+                className="w-full"
               >
                 {showReviews ? 'Hide Reviews' : 'View Reviews'}
               </Button>
@@ -305,10 +403,11 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
           
           <Button 
             className="w-full h-12 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-            disabled={!amount || !selectedContact}
+            disabled={!amount || !selectedContact || isSubmitting}
+            onClick={handleSendMoney}
           >
             <Send className="w-5 h-5 mr-2" />
-            Send ${amount || '0.00'}
+            {isSubmitting ? 'Sending...' : `Send $${amount || '0.00'}`}
           </Button>
         </div>
       </div>

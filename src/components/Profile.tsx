@@ -24,9 +24,12 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import EditProfileDialog from './EditProfileDialog';
+import { ThemeToggle } from './ThemeToggle';
+import { useTheme } from 'next-themes';
 
 const Profile = () => {
   const { user, logout } = useAuth();
+  const { theme } = useTheme();
   const [notifications, setNotifications] = useState(true);
   const [biometric, setBiometric] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -50,6 +53,7 @@ const Profile = () => {
       items: [
         { icon: Bell, label: 'Notifications', toggle: true, value: notifications, onChange: setNotifications },
         { icon: Smartphone, label: 'Biometric Login', toggle: true, value: biometric, onChange: setBiometric },
+        { icon: Sun, label: 'Theme', description: `Current: ${theme || 'System'}`, customComponent: true },
         { icon: Eye, label: 'Privacy Settings' },
       ]
     },
@@ -64,11 +68,13 @@ const Profile = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 pb-20">
-      <div className="container mx-auto px-4 py-6 max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 pb-20 overflow-y-auto">
+      <div className="container mx-auto px-4 py-6 max-w-md min-h-full">
         {/* Header */}
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-800 mb-6">Profile</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Profile</h1>
+          <ThemeToggle />
+        </div>
           
           {/* User Info */}
           <div className="text-center mb-6">
@@ -179,7 +185,9 @@ const Profile = () => {
                           {item.badge}
                         </Badge>
                       )}
-                      {item.toggle ? (
+                      {item.customComponent && item.label === 'Theme' ? (
+                        <ThemeToggle />
+                      ) : item.toggle ? (
                         <Switch
                           checked={item.value}
                           onCheckedChange={item.onChange}
