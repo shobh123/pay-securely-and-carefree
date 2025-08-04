@@ -102,11 +102,6 @@ const AuthPage: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Footer */}
-      <footer className="absolute bottom-0 w-full py-4 text-center text-sm text-gray-500 bg-white/30 backdrop-blur-sm">
-        <p>© 2024 Digital Wallet. All rights reserved.</p>
-      </footer>
     </div>
   );
 };
