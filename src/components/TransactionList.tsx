@@ -20,7 +20,7 @@ interface Transaction {
   date: string;
   time: string;
   category: string;
-  icon: any;
+  icon: React.ComponentType<{ className?: string }>;
   status: string;
   rating?: number;
   hasReview?: boolean;

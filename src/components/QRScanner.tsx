@@ -19,7 +19,7 @@ interface QRScannerProps {
 }
 
 const QRScanner: React.FC<QRScannerProps> = ({ onBack }) => {
-  const [scannedData, setScannedData] = useState<any>(null);
+  const [scannedData, setScannedData] = useState<string | null>(null);
   const [amount, setAmount] = useState('');
   const [isScanning, setIsScanning] = useState(false);
 
