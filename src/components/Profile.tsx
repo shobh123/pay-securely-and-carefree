@@ -20,7 +20,8 @@ import {
   Eye,
   Lock,
   Edit3,
-  Camera
+  Camera,
+  Sun
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import EditProfileDialog from './EditProfileDialog';
@@ -114,7 +115,6 @@ const Profile = () => {
               </Badge>
             </div>
           </div>
-        </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-3 gap-3 mb-6">
