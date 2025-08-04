@@ -166,11 +166,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup }) => {
             </button>
           </p>
           
-          <div className="text-xs text-muted-foreground mt-4 p-3 bg-muted rounded-lg">
-            <p className="font-medium mb-1">Demo Credentials:</p>
-            <p>Email: demo@demo.com</p>
-            <p>Password: demo123</p>
-          </div>
         </div>
       </CardContent>
     </Card>
