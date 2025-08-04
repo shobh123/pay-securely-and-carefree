@@ -19,6 +19,7 @@ interface AuthContextType {
   signup: (email: string, password: string, name: string, phone?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   loginDemo: () => void;
+  updateProfile: (updates: Partial<User>) => Promise<{ success: boolean; error?: string }>;
   users: User[];
 }
 
@@ -156,6 +157,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const updateProfile = async (updates: Partial<User>): Promise<{ success: boolean; error?: string }> => {
+    if (!user) {
+      return { success: false, error: 'No user logged in' };
+    }
+
+    setIsLoading(true);
+    
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    try {
+      // Update user object
+      const updatedUser = { ...user, ...updates };
+      
+      // Update in users array
+      setUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
+      
+      // Update current user
+      setUser(updatedUser);
+      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+      
+      setIsLoading(false);
+      return { success: true };
+    } catch (error) {
+      setIsLoading(false);
+      return { success: false, error: 'Failed to update profile' };
+    }
+  };
+
   const value: AuthContextType = {
     user,
     isAuthenticated: !!user,
@@ -164,6 +194,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     signup,
     logout,
     loginDemo,
+    updateProfile,
     users
   };
 

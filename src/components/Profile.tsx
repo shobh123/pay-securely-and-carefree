@@ -18,14 +18,18 @@ import {
   Users,
   Smartphone,
   Eye,
-  Lock
+  Lock,
+  Edit3,
+  Camera
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import EditProfileDialog from './EditProfileDialog';
 
 const Profile = () => {
   const { user, logout } = useAuth();
   const [notifications, setNotifications] = useState(true);
   const [biometric, setBiometric] = useState(true);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -68,14 +72,31 @@ const Profile = () => {
           
           {/* User Info */}
           <div className="text-center mb-6">
-            <Avatar className="w-20 h-20 mx-auto mb-4">
-              {user?.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
-              <AvatarFallback className="bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xl">
-                {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
-              </AvatarFallback>
-            </Avatar>
-            <h2 className="text-xl font-semibold">{user?.name || 'User'}</h2>
+            <div className="relative inline-block mb-4">
+              <Avatar className="w-20 h-20">
+                {user?.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
+                <AvatarFallback className="bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xl">
+                  {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
+                </AvatarFallback>
+              </Avatar>
+              <button
+                onClick={() => setEditDialogOpen(true)}
+                className="absolute -bottom-1 -right-1 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center hover:bg-purple-600 transition-colors"
+              >
+                <Camera className="w-3 h-3 text-white" />
+              </button>
+            </div>
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <h2 className="text-xl font-semibold">{user?.name || 'User'}</h2>
+              <button
+                onClick={() => setEditDialogOpen(true)}
+                className="p-1 text-gray-400 hover:text-purple-500 transition-colors"
+              >
+                <Edit3 className="w-4 h-4" />
+              </button>
+            </div>
             <p className="text-gray-600">{user?.email}</p>
+            {user?.phone && <p className="text-gray-500 text-sm">{user.phone}</p>}
             <p className="text-sm text-gray-500 mt-1">Account: {user?.accountNumber}</p>
             <div className="flex items-center justify-center gap-2 mt-2">
               <Badge className="bg-green-100 text-green-800">
@@ -178,6 +199,12 @@ const Profile = () => {
         <div className="text-center text-gray-500 text-xs mb-4">
           Version 2.1.0
         </div>
+        
+        {/* Edit Profile Dialog */}
+        <EditProfileDialog 
+          open={editDialogOpen} 
+          onOpenChange={setEditDialogOpen} 
+        />
       </div>
     </div>
   );
