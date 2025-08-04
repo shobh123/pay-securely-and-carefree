@@ -15,10 +15,11 @@ import {
   ArrowUpRight,
   ArrowDownRight
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Dashboard = () => {
+  const { user } = useAuth();
   const [balanceVisible, setBalanceVisible] = useState(true);
-  const [balance] = useState(2847.50);
 
   const recentTransactions = [
     { id: 1, type: 'received', amount: 150.00, from: 'Sarah Johnson', time: '2 hours ago', category: 'Food' },
@@ -34,10 +35,12 @@ const Dashboard = () => {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Good Morning</h1>
-            <p className="text-gray-600">Welcome back, Alex</p>
+            <p className="text-gray-600">Welcome back, {user?.name?.split(' ')[0] || 'User'}</p>
           </div>
           <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-            <span className="text-white font-semibold">A</span>
+            <span className="text-white font-semibold">
+              {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
+            </span>
           </div>
         </div>
 
@@ -59,7 +62,7 @@ const Dashboard = () => {
               </Button>
             </div>
             <div className="text-3xl font-bold mb-4">
-              {balanceVisible ? `$${balance.toFixed(2)}` : '••••••'}
+              {balanceVisible ? `$${user?.balance?.toFixed(2) || '0.00'}` : '••••••'}
             </div>
             <div className="flex gap-3">
               <Button size="sm" className="bg-white/20 hover:bg-white/30 border-0">

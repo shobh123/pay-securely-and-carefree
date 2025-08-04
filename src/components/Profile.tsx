@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { 
   Settings, 
@@ -20,10 +20,16 @@ import {
   Eye,
   Lock
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Profile = () => {
+  const { user, logout } = useAuth();
   const [notifications, setNotifications] = useState(true);
   const [biometric, setBiometric] = useState(true);
+
+  const handleLogout = () => {
+    logout();
+  };
 
   const menuItems = [
     {
@@ -48,7 +54,7 @@ const Profile = () => {
       items: [
         { icon: HelpCircle, label: 'Help Center' },
         { icon: Settings, label: 'App Settings' },
-        { icon: LogOut, label: 'Sign Out', danger: true },
+        { icon: LogOut, label: 'Sign Out', danger: true, onClick: handleLogout },
       ]
     }
   ];
@@ -63,19 +69,21 @@ const Profile = () => {
           {/* User Info */}
           <div className="text-center mb-6">
             <Avatar className="w-20 h-20 mx-auto mb-4">
+              {user?.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
               <AvatarFallback className="bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xl">
-                AJ
+                {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
-            <h2 className="text-xl font-semibold">Alex Johnson</h2>
-            <p className="text-gray-600">alex.johnson@email.com</p>
+            <h2 className="text-xl font-semibold">{user?.name || 'User'}</h2>
+            <p className="text-gray-600">{user?.email}</p>
+            <p className="text-sm text-gray-500 mt-1">Account: {user?.accountNumber}</p>
             <div className="flex items-center justify-center gap-2 mt-2">
               <Badge className="bg-green-100 text-green-800">
                 <Star className="w-3 h-3 mr-1" />
-                Premium
+                Active
               </Badge>
               <Badge variant="secondary">
-                Level 3
+                Balance: ${user?.balance?.toLocaleString() || '0.00'}
               </Badge>
             </div>
           </div>
@@ -120,6 +128,7 @@ const Profile = () => {
                     className={`flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors ${
                       item.danger ? 'hover:bg-red-50' : ''
                     }`}
+                    onClick={item.onClick}
                   >
                     <div className="flex items-center gap-3">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
