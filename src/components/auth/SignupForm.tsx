@@ -89,8 +89,8 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader className="space-y-1">
+    <Card className="w-full border-none shadow-lg bg-white/80 backdrop-blur-sm">
+      <CardHeader className="space-y-1 pb-4">
         <CardTitle className="text-2xl font-bold text-center">Create account</CardTitle>
         <CardDescription className="text-center">
           Sign up to get started with your digital wallet

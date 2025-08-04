@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
-import { Wallet, Shield, Zap, Users } from 'lucide-react';
+import { Wallet, Shield, Zap, Users, Star } from 'lucide-react';
 import LoginForm from '@/components/auth/LoginForm';
 import SignupForm from '@/components/auth/SignupForm';
 
@@ -10,95 +10,106 @@ const AuthPage: React.FC = () => {
 
   const features = [
     {
-      icon: <Wallet className="h-6 w-6 text-primary" />,
+      icon: <Wallet className="h-5 w-5 text-primary" />,
       title: "Digital Wallet",
-      description: "Secure and convenient digital payments"
+      description: "Secure payments"
     },
     {
-      icon: <Shield className="h-6 w-6 text-primary" />,
-      title: "Bank-Level Security",
-      description: "Your money is protected with advanced encryption"
+      icon: <Shield className="h-5 w-5 text-primary" />,
+      title: "Bank Security",
+      description: "Advanced encryption"
     },
     {
-      icon: <Zap className="h-6 w-6 text-primary" />,
+      icon: <Zap className="h-5 w-5 text-primary" />,
       title: "Instant Transfers",
-      description: "Send money instantly to friends and family"
+      description: "Send money fast"
     },
     {
-      icon: <Users className="h-6 w-6 text-primary" />,
+      icon: <Users className="h-5 w-5 text-primary" />,
       title: "24/7 Support",
-      description: "Round-the-clock customer service"
+      description: "Always here to help"
     }
   ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid lg:grid-cols-2 gap-8 items-center min-h-screen">
-          {/* Left side - Branding and features */}
-          <div className="space-y-8">
-            <div className="text-center lg:text-left">
-              <h1 className="text-4xl lg:text-6xl font-bold text-gray-900 mb-4">
-                Your Digital
-                <span className="text-primary block">Wallet</span>
-              </h1>
-              <p className="text-xl text-gray-600 mb-8">
-                Experience the future of banking with secure, fast, and convenient digital payments.
-              </p>
-            </div>
+      <div className="container mx-auto px-4 py-6 max-w-md">
+        {/* Header with Logo/Branding */}
+        <div className="text-center mb-8 pt-8">
+          <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Wallet className="h-8 w-8 text-white" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Digital Wallet
+          </h1>
+          <p className="text-gray-600 text-sm">
+            Secure, fast, and convenient banking
+          </p>
+        </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {features.map((feature, index) => (
-                <Card key={index} className="p-6 border-none shadow-sm bg-white/60 backdrop-blur-sm">
-                  <CardContent className="p-0">
-                    <div className="flex items-start space-x-4">
+        {/* Auth Tabs */}
+        <div className="mb-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="login">Sign In</TabsTrigger>
+              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="login" className="space-y-4">
+              <LoginForm onSwitchToSignup={() => setActiveTab('signup')} />
+            </TabsContent>
+            
+            <TabsContent value="signup" className="space-y-4">
+              <SignupForm onSwitchToLogin={() => setActiveTab('login')} />
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Features Grid - Mobile Optimized */}
+        <div className="space-y-4 mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 text-center mb-4">
+            Why Choose Us?
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            {features.map((feature, index) => (
+              <Card key={index} className="p-3 border-none shadow-sm bg-white/60 backdrop-blur-sm">
+                <CardContent className="p-0">
+                  <div className="text-center space-y-2">
+                    <div className="flex justify-center">
                       <div className="p-2 bg-primary/10 rounded-lg">
                         {feature.icon}
                       </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-900 mb-1">
-                          {feature.title}
-                        </h3>
-                        <p className="text-sm text-gray-600">
-                          {feature.description}
-                        </p>
-                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            <div className="text-center lg:text-left">
-              <p className="text-sm text-gray-500">
-                Trusted by over 10,000+ users worldwide
-              </p>
-              <div className="flex justify-center lg:justify-start mt-2 space-x-1">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="w-2 h-2 bg-primary rounded-full"></div>
-                ))}
-              </div>
-            </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900 text-sm">
+                        {feature.title}
+                      </h4>
+                      <p className="text-xs text-gray-600">
+                        {feature.description}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
+        </div>
 
-          {/* Right side - Authentication forms */}
-          <div className="flex justify-center">
-            <div className="w-full max-w-md">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-8">
-                  <TabsTrigger value="login">Sign In</TabsTrigger>
-                  <TabsTrigger value="signup">Sign Up</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="login" className="space-y-4">
-                  <LoginForm onSwitchToSignup={() => setActiveTab('signup')} />
-                </TabsContent>
-                
-                <TabsContent value="signup" className="space-y-4">
-                  <SignupForm onSwitchToLogin={() => setActiveTab('login')} />
-                </TabsContent>
-              </Tabs>
-            </div>
+        {/* Trust Indicators */}
+        <div className="text-center space-y-3">
+          <div className="flex items-center justify-center space-x-1">
+            {[...Array(5)].map((_, i) => (
+              <Star key={i} className="w-4 h-4 fill-primary text-primary" />
+            ))}
+            <span className="text-sm text-gray-600 ml-2">4.9/5</span>
+          </div>
+          <p className="text-sm text-gray-500">
+            Trusted by 10,000+ users worldwide
+          </p>
+          <div className="flex justify-center space-x-4 text-xs text-gray-400">
+            <span>✓ FDIC Insured</span>
+            <span>✓ 256-bit SSL</span>
+            <span>✓ PCI Compliant</span>
           </div>
         </div>
       </div>
