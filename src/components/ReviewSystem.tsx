@@ -25,9 +25,10 @@ interface Review {
 interface ReviewSystemProps {
   recipientId: string;
   recipientName: string;
+  onReviewsUpdated?: (averageRating: number, count: number, flags?: { spam: number; fraud: number; criminal: number }) => void;
 }
 
-const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName }) => {
+const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName, onReviewsUpdated }) => {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [hoveredStar, setHoveredStar] = useState(0);
@@ -141,6 +142,11 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName 
       }
       return [updated, ...prev];
     });
+
+    // Notify parent of updated stats
+    const newCount = reviews.length + (reviews.some(r => r.userId === (user?.id || 'current-user')) ? 0 : 1);
+    const newAverage = (reviews.reduce((sum, r) => sum + r.rating, 0) + rating - (reviews.find(r => r.userId === (user?.id || 'current-user'))?.rating || 0)) / newCount;
+    onReviewsUpdated?.(newAverage, newCount, categoryStats);
 
     toast({
       title: "Review Submitted Successfully",

@@ -17,6 +17,7 @@ interface TransactionContextType {
   transactions: Transaction[];
   addTransaction: (transaction: Omit<Transaction, 'id' | 'date'>) => void;
   deductBalance: (amount: number) => boolean;
+  creditBalance: (amount: number) => Promise<boolean>;
 }
 
 const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
@@ -89,11 +90,18 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
     return true;
   };
 
+  const creditBalance = async (amount: number): Promise<boolean> => {
+    if (!user || amount <= 0) return false;
+    await updateProfile({ balance: user.balance + amount });
+    return true;
+  };
+
   return (
     <TransactionContext.Provider value={{
       transactions,
       addTransaction,
-      deductBalance
+      deductBalance,
+      creditBalance
     }}>
       {children}
     </TransactionContext.Provider>

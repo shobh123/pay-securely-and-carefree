@@ -46,11 +46,11 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onBack }) => {
           </TabsContent>
           
           <TabsContent value="sent">
-            <p className="text-center text-gray-500 py-8">Sent transactions will be displayed here</p>
+            <TransactionList searchTerm={searchTerm} typeFilter="sent" />
           </TabsContent>
           
           <TabsContent value="received">
-            <p className="text-center text-gray-500 py-8">Received transactions will be displayed here</p>
+            <TransactionList searchTerm={searchTerm} typeFilter="received" />
           </TabsContent>
         </Tabs>
       </div>
