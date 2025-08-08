@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 
 interface Transaction {
@@ -67,8 +67,24 @@ const initialTransactions: Transaction[] = [
 ];
 
 export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
+  const [transactions, setTransactions] = useState<Transaction[]>(() => {
+    try {
+      const stored = localStorage.getItem('transactions');
+      if (stored) return JSON.parse(stored) as Transaction[];
+    } catch {
+      // ignore parse errors
+    }
+    return initialTransactions;
+  });
   const { user, updateProfile } = useAuth();
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('transactions', JSON.stringify(transactions));
+    } catch {
+      // ignore quota errors
+    }
+  }, [transactions]);
 
   const addTransaction = (transaction: Omit<Transaction, 'id' | 'date'>) => {
     const newTransaction: Transaction = {

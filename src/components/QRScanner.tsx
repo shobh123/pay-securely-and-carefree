@@ -13,6 +13,8 @@ import {
   Check,
   X
 } from 'lucide-react';
+import { useTransaction } from '@/contexts/TransactionContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface QRScannerProps {
   onBack: () => void;
@@ -30,6 +32,9 @@ const QRScanner: React.FC<QRScannerProps> = ({ onBack }) => {
   const [scannedData, setScannedData] = useState<ScannedPaymentRequest | null>(null);
   const [amount, setAmount] = useState('');
   const [isScanning, setIsScanning] = useState(false);
+  const [isPaying, setIsPaying] = useState(false);
+  const { addTransaction, deductBalance } = useTransaction();
+  const { toast } = useToast();
 
   // Simulate QR scan
   const handleScan = () => {
@@ -43,6 +48,52 @@ const QRScanner: React.FC<QRScannerProps> = ({ onBack }) => {
       });
       setIsScanning(false);
     }, 2000);
+  };
+
+  const handleFromGallery = () => {
+    // Simulate selecting a QR from gallery
+    setScannedData({
+      type: 'payment_request',
+      merchant: 'Bakery & Co.',
+      amount: '7.25',
+      description: 'Sourdough loaf'
+    });
+  };
+
+  const handlePay = async () => {
+    if (!scannedData) return;
+    const selectedAmountString = (amount && parseFloat(amount) > 0) ? amount : scannedData.amount;
+    const amt = parseFloat(selectedAmountString);
+    if (isNaN(amt) || amt <= 0) {
+      toast({ title: 'Invalid amount', description: 'Enter a valid amount to pay.', variant: 'destructive' });
+      return;
+    }
+
+    setIsPaying(true);
+
+    const ok = deductBalance(amt);
+    if (!ok) {
+      toast({ title: 'Insufficient Balance', description: "You don't have enough balance for this payment.", variant: 'destructive' });
+      setIsPaying(false);
+      return;
+    }
+
+    addTransaction({
+      type: 'sent',
+      amount: amt,
+      recipient: scannedData.merchant,
+      description: scannedData.description || `QR payment to ${scannedData.merchant}`,
+      category: 'QR Payment',
+      status: 'completed'
+    });
+
+    toast({ title: 'Payment Successful', description: `Paid $${amt.toFixed(2)} to ${scannedData.merchant}.` });
+
+    // Reset state and navigate back
+    setScannedData(null);
+    setAmount('');
+    setIsPaying(false);
+    onBack();
   };
 
   return (
@@ -95,7 +146,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onBack }) => {
             {isScanning ? 'Scanning...' : 'Scan'}
           </Button>
           
-          <Button variant="outline" className="h-12">
+          <Button variant="outline" className="h-12" onClick={handleFromGallery}>
             <Image className="w-5 h-5 mr-2" />
             From Gallery
           </Button>
@@ -144,14 +195,15 @@ const QRScanner: React.FC<QRScannerProps> = ({ onBack }) => {
               variant="outline" 
               onClick={() => setScannedData(null)}
               className="h-12"
+              disabled={isPaying}
             >
               <X className="w-5 h-5 mr-2" />
               Cancel
             </Button>
             
-            <Button className="h-12 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+            <Button className="h-12 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700" onClick={handlePay} disabled={isPaying}>
               <Check className="w-5 h-5 mr-2" />
-              Pay ${amount || scannedData.amount}
+              {isPaying ? 'Paying...' : `Pay $${(amount || scannedData.amount)}`}
             </Button>
           </div>
         ) : (
