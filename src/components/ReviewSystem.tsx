@@ -111,41 +111,72 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
         description: "Please select a rating before submitting.",
         variant: "destructive"
       });
+      return;
     }
 
-    // Deduct $5 from balance
-    if (user && user.balance >= 5) {
-      await updateProfile({ balance: user.balance - 5 });
+    if (!user) {
+      toast({
+        title: "Not signed in",
+        description: "Please log in to submit a review.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Charge $5 only if we're actually submitting a valid review
+    if (user.balance < 5) {
+      toast({
+        title: "Insufficient Balance",
+        description: "You need at least $5 to submit a review.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const chargeResult = await updateProfile({ balance: user.balance - 5 });
+    if (!chargeResult.success) {
+      toast({
+        title: "Payment Failed",
+        description: "We couldn't process the review charge. Please try again.",
+        variant: "destructive",
+      });
+      return;
     }
 
     const now = new Date().toISOString().split('T')[0];
     const currentUserName = user?.name || 'You';
     const currentUserId = user?.id || 'current-user';
 
-    setReviews(prev => {
-      const existingIndex = prev.findIndex(r => r.userId === currentUserId);
-      const updated: Review = {
-        id: existingIndex >= 0 ? prev[existingIndex].id : Math.random().toString(36).slice(2),
-        userId: currentUserId,
-        userName: currentUserName,
-        rating,
-        comment,
-        date: now,
-        verified: true,
-        categories: selectedCategories.length ? selectedCategories : undefined
-      };
-      if (existingIndex >= 0) {
-        const copy = [...prev];
-        copy[existingIndex] = updated;
-        return copy;
-      }
-      return [updated, ...prev];
-    });
+    // Build the updated reviews array first so we can compute accurate stats
+    const existingIndex = reviews.findIndex(r => r.userId === currentUserId);
+    const updatedEntry: Review = {
+      id: existingIndex >= 0 ? reviews[existingIndex].id : Math.random().toString(36).slice(2),
+      userId: currentUserId,
+      userName: currentUserName,
+      rating,
+      comment,
+      date: now,
+      verified: true,
+      categories: selectedCategories.length ? selectedCategories : undefined
+    };
 
-    // Notify parent of updated stats
-    const newCount = reviews.length + (reviews.some(r => r.userId === (user?.id || 'current-user')) ? 0 : 1);
-    const newAverage = (reviews.reduce((sum, r) => sum + r.rating, 0) + rating - (reviews.find(r => r.userId === (user?.id || 'current-user'))?.rating || 0)) / newCount;
-    onReviewsUpdated?.(newAverage, newCount, categoryStats);
+    const newReviews: Review[] = existingIndex >= 0
+      ? (() => { const copy = [...reviews]; copy[existingIndex] = updatedEntry; return copy; })()
+      : [updatedEntry, ...reviews];
+
+    setReviews(newReviews);
+
+    // Compute and emit updated stats from the new reviews
+    const newCount = newReviews.length;
+    const newAverage = newCount > 0
+      ? newReviews.reduce((sum, r) => sum + r.rating, 0) / newCount
+      : 0;
+    const newCategoryStats = (() => {
+      const stats = { spam: 0, fraud: 0, criminal: 0 };
+      newReviews.forEach(r => r.categories?.forEach(c => { stats[c]++; }));
+      return stats;
+    })();
+    onReviewsUpdated?.(newAverage, newCount, newCategoryStats);
 
     toast({
       title: "Review Submitted Successfully",
