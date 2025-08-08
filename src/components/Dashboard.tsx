@@ -64,7 +64,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                 {balanceVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
               </Button>
             </div>
-            <div className="text-3xl font-bold mb-4">
+            <div className="text-3xl font-bold mb-4" data-testid="balance-value">
               {balanceVisible ? `$${user?.balance?.toFixed(2) || '0.00'}` : '••••••'}
             </div>
             <div className="flex gap-3">
