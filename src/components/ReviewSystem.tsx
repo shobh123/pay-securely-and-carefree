@@ -53,6 +53,7 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
   const [open, setOpen] = useState(false);
 
   const [reviews, setReviews] = useState<Review[]>([]);
+  const isDemoUser = !!user && (user.email?.toLowerCase() === 'demo@demo.com' || user.id === '3');
 
   useEffect(() => {
     try {
@@ -186,7 +187,6 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
     }
 
     // Block demo account from submitting reviews
-    const isDemoUser = user.email?.toLowerCase() === 'demo@demo.com' || user.id === '3';
     if (isDemoUser) {
       toast({
         title: "Demo account restriction",
@@ -381,7 +381,7 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
         {/* Add / Edit Review */}
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full" disabled={!user || isDemoUser}>
               {reviews.some(r => r.userId === (user?.id || 'current-user')) ? 'Edit Your Review' : 'Write a Review'}
             </Button>
           </DialogTrigger>
