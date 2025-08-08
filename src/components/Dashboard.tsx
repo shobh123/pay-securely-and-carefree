@@ -16,7 +16,11 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
-const Dashboard = () => {
+interface DashboardProps {
+  onNavigate?: (tab: 'home' | 'send' | 'scan' | 'history' | 'profile') => void;
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const { user } = useAuth();
   const [balanceVisible, setBalanceVisible] = useState(true);
 
@@ -78,7 +82,7 @@ const Dashboard = () => {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-2 gap-4 mb-6">
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
+          <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => onNavigate?.('send')}>
             <CardContent className="p-4 text-center">
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
                 <Send className="w-6 h-6 text-green-600" />
@@ -87,7 +91,7 @@ const Dashboard = () => {
             </CardContent>
           </Card>
           
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
+          <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => onNavigate?.('scan')}>
             <CardContent className="p-4 text-center">
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
                 <QrCode className="w-6 h-6 text-blue-600" />

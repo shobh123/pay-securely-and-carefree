@@ -12,7 +12,7 @@ const Index = () => {
   const renderActiveComponent = () => {
     switch (activeTab) {
       case 'home':
-        return <Dashboard />;
+        return <Dashboard onNavigate={setActiveTab} />;
       case 'send':
         return <SendMoney onBack={() => setActiveTab('home')} />;
       case 'scan':
