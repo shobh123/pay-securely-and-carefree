@@ -71,8 +71,20 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
   const [upiId, setUpiId] = useState('');
   const [bankAccount, setBankAccount] = useState('');
   const [ifsc, setIfsc] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const selectedContactData = recentContacts.find(contact => contact.id === selectedContact);
+
+  const filteredContacts = recentContacts.filter(c => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      c.name.toLowerCase().includes(q) ||
+      c.email.toLowerCase().includes(q) ||
+      (c.mode && c.mode.toLowerCase().includes(q)) ||
+      c.id.toLowerCase().includes(q)
+    );
+  });
 
   const upsertRecent = (contact: Contact) => {
     setRecentContacts(prev => {
@@ -351,6 +363,8 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
           <Input 
             placeholder="Search contacts..." 
             className="pl-10"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
 
@@ -361,7 +375,7 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
             {/* Removed Add button and dialog */}
           </CardHeader>
           <CardContent className="space-y-3">
-            {recentContacts.map((contact) => (
+            {filteredContacts.map((contact) => (
               <div
                 key={contact.id}
                 onClick={() => {
