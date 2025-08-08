@@ -52,6 +52,14 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
     { id: '5', name: 'Lisa Anderson', email: 'lisa@email.com', avatar: 'LA', lastSent: '$200.00', rating: 4.7, reviewCount: 18, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0 },
   ]);
 
+  const updateContactAfterSend = (contactId: string, amountSent: number) => {
+    setRecentContacts(prev => prev.map(c => c.id === contactId ? {
+      ...c,
+      lastSent: `$${amountSent.toFixed(2)}`,
+      reviewCount: c.reviewCount,
+    } : c));
+  };
+
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [newContactName, setNewContactName] = useState('');
   const [newContactEmail, setNewContactEmail] = useState('');
@@ -133,6 +141,11 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
       category: 'Transfer',
       status: 'completed'
     });
+
+    // Update recent contact info if applicable
+    if (selectedMethod === 'contacts' && selectedContact) {
+      updateContactAfterSend(selectedContact, amountNumber);
+    }
 
     setTimeout(() => {
       toast({ title: "Money Sent Successfully", description: `$${amountNumber.toFixed(2)} has been sent to ${recipientLabel}` });
@@ -381,6 +394,13 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
           <ReviewSystem 
             recipientId={selectedContactData.id}
             recipientName={selectedContactData.name}
+            onSummaryChange={({ averageRating, reviewCount }) => {
+              setRecentContacts(prev => prev.map(c => c.id === selectedContactData.id ? {
+                ...c,
+                rating: averageRating,
+                reviewCount,
+              } : c));
+            }}
           />
         )}
 

@@ -8,7 +8,7 @@ interface Transaction {
   recipient?: string;
   sender?: string;
   description: string;
-  category: string;
+  category: 'Food' | 'Shopping' | 'Transfer' | 'Top-up' | 'Review Fee' | 'Fraud Fee';
   date: string;
   status: 'completed' | 'pending' | 'failed';
 }

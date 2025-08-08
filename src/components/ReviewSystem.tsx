@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Star, AlertTriangle, Shield, Flag, Zap, CreditCard, UserX } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTransaction } from '@/contexts/TransactionContext';
 
 interface Review {
   id: string;
@@ -25,6 +26,7 @@ interface Review {
 interface ReviewSystemProps {
   recipientId: string;
   recipientName: string;
+  onSummaryChange?: (summary: { averageRating: number; reviewCount: number }) => void;
 }
 
 const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName }) => {
@@ -34,6 +36,7 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName 
   const [selectedCategories, setSelectedCategories] = useState<('spam' | 'fraud' | 'criminal')[]>([]);
   const { toast } = useToast();
   const { user, updateProfile } = useAuth();
+  const { addTransaction } = useTransaction();
   const [open, setOpen] = useState(false);
 
   // Mock reviews data
@@ -114,14 +117,18 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName 
     }
 
     // Deduct $5 from balance
-    if (user && user.balance >= 5) {
-      await updateProfile({ balance: user.balance - 5 });
+    if (!user || user.balance < 5) {
+      toast({ title: 'Insufficient Balance', description: 'You need at least $5 to submit a review.', variant: 'destructive' });
+      return;
     }
+    await updateProfile({ balance: user.balance - 5 });
 
     const now = new Date().toISOString().split('T')[0];
     const currentUserName = user?.name || 'You';
     const currentUserId = user?.id || 'current-user';
 
+             // Build updated reviews list
+    let newReviews: Review[] = [];
     setReviews(prev => {
       const existingIndex = prev.findIndex(r => r.userId === currentUserId);
       const updated: Review = {
@@ -137,9 +144,26 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName 
       if (existingIndex >= 0) {
         const copy = [...prev];
         copy[existingIndex] = updated;
+        newReviews = copy;
         return copy;
       }
-      return [updated, ...prev];
+      newReviews = [updated, ...prev];
+      return newReviews;
+    });
+
+    // Notify parent with new summary
+    const sum = newReviews.reduce((s, r) => s + r.rating, 0);
+    const avg = newReviews.length > 0 ? sum / newReviews.length : 0;
+    onSummaryChange?.({ averageRating: avg, reviewCount: newReviews.length });
+
+    // Record fee as transaction
+    addTransaction({
+      type: 'sent',
+      amount: 5,
+      recipient: 'Review Fee',
+      description: 'Review and rating charge',
+      category: 'Review Fee',
+      status: 'completed'
     });
 
     toast({

@@ -26,6 +26,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import EditProfileDialog from './EditProfileDialog';
 import { ThemeToggle } from './ThemeToggle';
 import { useTheme } from 'next-themes';
+import ManageCardsDialog from './ManageCardsDialog';
+import { useToast } from '@/hooks/use-toast';
 
 const Profile = () => {
   const { user, logout } = useAuth();
@@ -33,6 +35,8 @@ const Profile = () => {
   const [notifications, setNotifications] = useState(true);
   const [biometric, setBiometric] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [cardsOpen, setCardsOpen] = useState(false);
+  const { toast } = useToast();
 
   const handleLogout = () => {
     logout();
@@ -42,10 +46,10 @@ const Profile = () => {
     {
       category: 'Account',
       items: [
-        { icon: CreditCard, label: 'Payment Methods', badge: '3 cards' },
-        { icon: Shield, label: 'Security', description: 'Biometric, PIN, passwords' },
-        { icon: Users, label: 'Invite Friends', badge: 'Earn $10' },
-        { icon: Gift, label: 'Rewards', description: 'Cashback and offers' },
+        { icon: CreditCard, label: 'Payment Methods', badge: 'Manage', onClick: () => setCardsOpen(true) },
+        { icon: Shield, label: 'Security', description: 'Biometric, PIN, passwords', onClick: () => toast({ title: 'Security', description: 'Security settings coming soon.' }) },
+        { icon: Users, label: 'Invite Friends', badge: 'Earn $10', onClick: () => toast({ title: 'Invite Friends', description: 'Share your referral link to earn rewards.' }) },
+        { icon: Gift, label: 'Rewards', description: 'Cashback and offers', onClick: () => toast({ title: 'Rewards', description: 'View and redeem your rewards (coming soon).' }) },
       ]
     },
     {
@@ -54,14 +58,14 @@ const Profile = () => {
         { icon: Bell, label: 'Notifications', toggle: true, value: notifications, onChange: setNotifications },
         { icon: Smartphone, label: 'Biometric Login', toggle: true, value: biometric, onChange: setBiometric },
         { icon: Sun, label: 'Theme', description: `Current: ${theme || 'System'}`, customComponent: true },
-        { icon: Eye, label: 'Privacy Settings' },
+        { icon: Eye, label: 'Privacy Settings', onClick: () => toast({ title: 'Privacy', description: 'Manage privacy controls (coming soon).' }) },
       ]
     },
     {
       category: 'Support',
       items: [
-        { icon: HelpCircle, label: 'Help Center' },
-        { icon: Settings, label: 'App Settings' },
+        { icon: HelpCircle, label: 'Help Center', onClick: () => toast({ title: 'Help Center', description: 'Visit our help center (coming soon).' }) },
+        { icon: Settings, label: 'App Settings', onClick: () => toast({ title: 'App Settings', description: 'Manage app preferences (coming soon).' }) },
         { icon: LogOut, label: 'Sign Out', danger: true, onClick: handleLogout },
       ]
     }
@@ -149,7 +153,7 @@ const Profile = () => {
                     className={`flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors ${
                       item.danger ? 'hover:bg-red-50' : ''
                     }`}
-                    onClick={item.onClick}
+                    onClick={(item as any).onClick}
                   >
                     <div className="flex items-center gap-3">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -182,8 +186,8 @@ const Profile = () => {
                         <ThemeToggle />
                       ) : item.toggle ? (
                         <Switch
-                          checked={item.value}
-                          onCheckedChange={item.onChange}
+                          checked={(item as any).value}
+                          onCheckedChange={(item as any).onChange}
                         />
                       ) : (
                         <ChevronRight className="w-4 h-4 text-gray-400" />
@@ -199,11 +203,12 @@ const Profile = () => {
         <div className="text-center text-gray-500 text-xs mb-4">
           Version 2.1.0
         </div>
-        {/* Edit Profile Dialog */}
+        {/* Dialogs */}
         <EditProfileDialog 
           open={editDialogOpen} 
           onOpenChange={setEditDialogOpen} 
         />
+        <ManageCardsDialog open={cardsOpen} onOpenChange={setCardsOpen} asTrigger={false} />
       </div>
     </div>
   );

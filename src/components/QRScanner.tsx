@@ -13,6 +13,10 @@ import {
   Check,
   X
 } from 'lucide-react';
+import { QrScanner } from '@yudiel/react-qr-scanner';
+import jsQR from 'jsqr';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTransaction } from '@/contexts/TransactionContext';
 
 interface QRScannerProps {
   onBack: () => void;
@@ -28,21 +32,70 @@ interface ScannedPaymentRequest {
 
 const QRScanner: React.FC<QRScannerProps> = ({ onBack }) => {
   const [scannedData, setScannedData] = useState<ScannedPaymentRequest | null>(null);
+  const { user, updateProfile } = useAuth();
+  const { addTransaction } = useTransaction();
   const [amount, setAmount] = useState('');
   const [isScanning, setIsScanning] = useState(false);
+  const [useCamera, setUseCamera] = useState(false);
 
-  // Simulate QR scan
-  const handleScan = () => {
+  const parsePaymentRequest = (text: string): ScannedPaymentRequest | null => {
+    try {
+      const data = JSON.parse(text);
+      if (data?.type === 'payment_request') return data as ScannedPaymentRequest;
+      // fallback: simple vpa:merchant|amount|description
+      if (text.startsWith('payment:')) {
+        const [, merchant, amt, desc] = text.split(':');
+        return { type: 'payment_request', merchant, amount: amt, description: desc };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const handleScan = (result?: { rawValue?: string } | null) => {
     setIsScanning(true);
-    setTimeout(() => {
-      setScannedData({
-        type: 'payment_request',
-        merchant: 'Coffee Shop',
-        amount: '4.50',
-        description: 'Latte and croissant'
-      });
-      setIsScanning(false);
-    }, 2000);
+    const text = result?.rawValue || '';
+    const parsed = parsePaymentRequest(text) || {
+      type: 'payment_request',
+      merchant: 'Coffee Shop',
+      amount: '4.50',
+      description: 'Latte and croissant'
+    };
+    setScannedData(parsed);
+    setIsScanning(false);
+  };
+
+  const handleSelectFromGallery = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width; canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return;
+          ctx.drawImage(img, 0, 0);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imageData.data, imageData.width, imageData.height);
+          if (code?.data) {
+            const parsed = parsePaymentRequest(code.data);
+            if (parsed) setScannedData(parsed);
+          } else {
+            setScannedData({ type: 'payment_request', merchant: 'Gallery Merchant', amount: '12.00', description: 'Selected from gallery' });
+          }
+        };
+        img.src = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
   };
 
   return (
@@ -60,7 +113,14 @@ const QRScanner: React.FC<QRScannerProps> = ({ onBack }) => {
         <Card className="mb-6 overflow-hidden">
           <CardContent className="p-0">
             <div className="aspect-square bg-gradient-to-br from-gray-900 to-gray-700 relative flex items-center justify-center">
-              {isScanning ? (
+              {useCamera ? (
+                <QrScanner
+                  onDecode={(text) => { handleScan({ rawValue: text }); setUseCamera(false); }}
+                  onError={() => setUseCamera(false)}
+                  constraints={{ facingMode: 'environment' }}
+                  containerStyle={{ width: '100%', height: '100%' }}
+                />
+              ) : isScanning ? (
                 <div className="text-center text-white">
                   <div className="animate-spin w-8 h-8 border-2 border-white border-t-transparent rounded-full mx-auto mb-4"></div>
                   <p>Scanning...</p>
@@ -76,8 +136,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onBack }) => {
                   <p className="opacity-75">Position QR code in the frame</p>
                 </div>
               )}
-              
-              {/* Scanner Frame */}
               <div className="absolute inset-8 border-2 border-white border-dashed rounded-lg opacity-50"></div>
             </div>
           </CardContent>
@@ -87,15 +145,15 @@ const QRScanner: React.FC<QRScannerProps> = ({ onBack }) => {
         <div className="grid grid-cols-2 gap-3 mb-6">
           <Button 
             variant="outline" 
-            onClick={handleScan}
+            onClick={() => setUseCamera(true)}
             disabled={isScanning}
             className="h-12"
           >
             <Camera className="w-5 h-5 mr-2" />
-            {isScanning ? 'Scanning...' : 'Scan'}
+            {useCamera ? 'Camera Active' : 'Scan'}
           </Button>
           
-          <Button variant="outline" className="h-12">
+          <Button variant="outline" className="h-12" onClick={handleSelectFromGallery}>
             <Image className="w-5 h-5 mr-2" />
             From Gallery
           </Button>
@@ -149,7 +207,22 @@ const QRScanner: React.FC<QRScannerProps> = ({ onBack }) => {
               Cancel
             </Button>
             
-            <Button className="h-12 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+            <Button className="h-12 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700" onClick={async () => {
+              const value = parseFloat(amount || scannedData.amount);
+              if (isNaN(value) || value <= 0) return;
+              if (!user || user.balance < value) return;
+              await updateProfile({ balance: user.balance - value });
+              addTransaction({
+                type: 'sent',
+                amount: value,
+                recipient: scannedData.merchant,
+                description: scannedData.description || 'QR payment',
+                category: 'Transfer',
+                status: 'completed'
+              });
+              setAmount('');
+              setScannedData(null);
+            }}>
               <Check className="w-5 h-5 mr-2" />
               Pay ${amount || scannedData.amount}
             </Button>

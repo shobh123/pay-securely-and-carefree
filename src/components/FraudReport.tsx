@@ -6,11 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertTriangle, Shield, FileText, CreditCard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useComplaints } from '@/contexts/ComplaintContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTransaction } from '@/contexts/TransactionContext';
 
 interface FraudReportProps {
   recipientId: string;
@@ -25,6 +26,8 @@ const FraudReport: React.FC<FraudReportProps> = ({ recipientId, recipientName, a
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const { addComplaint } = useComplaints();
+  const { user, updateProfile } = useAuth();
+  const { addTransaction } = useTransaction();
   const [open, setOpen] = useState(false);
 
   const reportTypes = [
@@ -49,7 +52,23 @@ const FraudReport: React.FC<FraudReportProps> = ({ recipientId, recipientName, a
     setIsSubmitting(true);
 
     // Simulate API call
-    setTimeout(() => {
+    setTimeout(async () => {
+      // Charge $5 fee
+      if (!user || user.balance < 5) {
+        toast({ title: 'Insufficient Balance', description: 'You need at least $5 to submit a fraud report.', variant: 'destructive' });
+        setIsSubmitting(false);
+        return;
+      }
+      await updateProfile({ balance: user.balance - 5 });
+      addTransaction({
+        type: 'sent',
+        amount: 5,
+        recipient: 'Fraud Report Fee',
+        description: 'Fraud report processing fee',
+        category: 'Fraud Fee',
+        status: 'completed'
+      });
+
       addComplaint({
         description: `${reportType.toUpperCase()}: ${description} (Recipient: ${recipientName}, Amount: ${amount}, ID: ${recipientId})`,
         replyFromAuthority: 'Complaint received and under review. Initial assessment in progress.',
@@ -65,8 +84,8 @@ const FraudReport: React.FC<FraudReportProps> = ({ recipientId, recipientName, a
       });
 
       toast({
-        title: "Report Submitted Successfully",
-        description: "Your fraud report has been submitted to authorities. The ₹500 processing fee will be charged to your account.",
+        title: 'Report Submitted Successfully',
+        description: 'Your fraud report has been submitted. A $5 fee has been charged to your wallet.',
       });
 
       // Reset form and close dialog
@@ -102,9 +121,8 @@ const FraudReport: React.FC<FraudReportProps> = ({ recipientId, recipientName, a
                 <AlertTriangle className="w-5 h-5 text-orange-600 mt-0.5" />
                 <div className="text-sm">
                   <p className="font-medium text-orange-800 mb-1">Important Notice</p>
-                  <p className="text-orange-700">
-                    A processing fee of <strong>₹500</strong> will be charged for fraud reports. 
-                    This helps us maintain the integrity of our investigation process.
+                                    <p className="text-orange-700">
+                    A processing fee of <strong>$5</strong> will be charged for fraud reports.
                   </p>
                 </div>
               </div>
@@ -187,18 +205,18 @@ const FraudReport: React.FC<FraudReportProps> = ({ recipientId, recipientName, a
           <div className="flex items-center justify-between p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <span className="text-sm font-medium">Processing Fee:</span>
             <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-              ₹500.00
+              $5.00
             </Badge>
           </div>
 
           {/* Submit Button */}
-          <Button 
-            onClick={handleSubmitReport} 
-            disabled={isSubmitting || !reportType || !description}
-            className="w-full bg-red-600 hover:bg-red-700"
-          >
-            {isSubmitting ? 'Submitting Report...' : 'Submit Fraud Report (₹500)'}
-          </Button>
+                      <Button 
+              onClick={handleSubmitReport} 
+              disabled={isSubmitting || !reportType || !description}
+              className="w-full bg-red-600 hover:bg-red-700"
+            >
+              {isSubmitting ? 'Submitting Report...' : 'Submit Fraud Report ($5)'}
+            </Button>
 
           <p className="text-xs text-gray-500 text-center">
             By submitting this report, you agree to pay the processing fee and provide accurate information.

@@ -41,6 +41,9 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, isLast }
       'Transport': 'bg-green-100 text-green-800',
       'Transfer': 'bg-purple-100 text-purple-800',
       'Bills': 'bg-red-100 text-red-800',
+      'Top-up': 'bg-emerald-100 text-emerald-800',
+      'Review Fee': 'bg-yellow-100 text-yellow-800',
+      'Fraud Fee': 'bg-rose-100 text-rose-800',
     };
     return colors[category as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
