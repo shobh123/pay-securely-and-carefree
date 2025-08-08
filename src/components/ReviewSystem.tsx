@@ -76,9 +76,9 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
 
   const flaggedReviews = reviews.filter(review => review.flagged).length;
   
-  const getCategoryStats = () => {
+  const getCategoryStats = (list: Review[] = reviews) => {
     const stats = { spam: 0, fraud: 0, criminal: 0 };
-    reviews.forEach(review => {
+    list.forEach(review => {
       review.categories?.forEach(category => {
         stats[category]++;
       });
@@ -111,41 +111,44 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
         description: "Please select a rating before submitting.",
         variant: "destructive"
       });
-    }
-
-    // Deduct $5 from balance
-    if (user && user.balance >= 5) {
-      await updateProfile({ balance: user.balance - 5 });
+      return;
     }
 
     const now = new Date().toISOString().split('T')[0];
     const currentUserName = user?.name || 'You';
     const currentUserId = user?.id || 'current-user';
 
-    setReviews(prev => {
-      const existingIndex = prev.findIndex(r => r.userId === currentUserId);
-      const updated: Review = {
-        id: existingIndex >= 0 ? prev[existingIndex].id : Math.random().toString(36).slice(2),
-        userId: currentUserId,
-        userName: currentUserName,
-        rating,
-        comment,
-        date: now,
-        verified: true,
-        categories: selectedCategories.length ? selectedCategories : undefined
-      };
-      if (existingIndex >= 0) {
-        const copy = [...prev];
-        copy[existingIndex] = updated;
-        return copy;
-      }
-      return [updated, ...prev];
-    });
+    // Build updated reviews list (add or edit)
+    const existingIndex = reviews.findIndex(r => r.userId === currentUserId);
+    const updated: Review = {
+      id: existingIndex >= 0 ? reviews[existingIndex].id : Math.random().toString(36).slice(2),
+      userId: currentUserId,
+      userName: currentUserName,
+      rating,
+      comment,
+      date: now,
+      verified: true,
+      categories: selectedCategories.length ? selectedCategories : undefined
+    };
 
-    // Notify parent of updated stats
-    const newCount = reviews.length + (reviews.some(r => r.userId === (user?.id || 'current-user')) ? 0 : 1);
-    const newAverage = (reviews.reduce((sum, r) => sum + r.rating, 0) + rating - (reviews.find(r => r.userId === (user?.id || 'current-user'))?.rating || 0)) / newCount;
-    onReviewsUpdated?.(newAverage, newCount, categoryStats);
+    const newReviews = existingIndex >= 0
+      ? (() => { const copy = [...reviews]; copy[existingIndex] = updated; return copy; })()
+      : [updated, ...reviews];
+
+    setReviews(newReviews);
+
+    // Compute fresh stats from new list
+    const newCount = newReviews.length;
+    const sum = newReviews.reduce((acc, r) => acc + r.rating, 0);
+    const newAverage = newCount > 0 ? sum / newCount : 0;
+    const newCategoryStats = getCategoryStats(newReviews);
+
+    // Deduct $5 after valid submission
+    if (user && user.balance >= 5) {
+      await updateProfile({ balance: user.balance - 5 });
+    }
+
+    onReviewsUpdated?.(newAverage, newCount, newCategoryStats);
 
     toast({
       title: "Review Submitted Successfully",
@@ -319,7 +322,7 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
                   ))}
                 </div>
               </div>
-              <Button onClick={handleSubmitReview} className="w-full">
+              <Button onClick={handleSubmitReview} className="w-full" disabled={rating === 0}>
                 Submit Review
               </Button>
             </div>

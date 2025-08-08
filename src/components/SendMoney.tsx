@@ -243,6 +243,14 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
   };
 
   const quickAmounts = [10, 25, 50, 100];
+  const [searchTerm, setSearchTerm] = useState('');
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const filteredContacts = normalizedSearch
+    ? recentContacts.filter(c => {
+        const hay = `${c.name} ${c.email} ${c.id}`.toLowerCase();
+        return hay.includes(normalizedSearch);
+      })
+    : recentContacts;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 overflow-y-auto">
@@ -351,6 +359,8 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
           <Input 
             placeholder="Search contacts..." 
             className="pl-10"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
@@ -361,7 +371,10 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
             {/* Removed Add button and dialog */}
           </CardHeader>
           <CardContent className="space-y-3">
-            {recentContacts.map((contact) => (
+            {filteredContacts.length === 0 && (
+              <div className="text-sm text-gray-500 text-center py-6">No matching contacts found.</div>
+            )}
+            {filteredContacts.map((contact) => (
               <div
                 key={contact.id}
                 onClick={() => {
