@@ -123,7 +123,7 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
       return;
     }
 
-    // Charge $5 only if we're actually submitting a valid review
+    // Always charge $5 on submit (including edits), only after basic validation
     if (user.balance < 5) {
       toast({
         title: "Insufficient Balance",
@@ -132,7 +132,6 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
       });
       return;
     }
-
     const chargeResult = await updateProfile({ balance: user.balance - 5 });
     if (!chargeResult.success) {
       toast({
