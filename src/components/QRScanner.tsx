@@ -18,8 +18,16 @@ interface QRScannerProps {
   onBack: () => void;
 }
 
+// Define the expected shape of scanned data
+interface ScannedPaymentRequest {
+  type: 'payment_request';
+  merchant: string;
+  amount: string;
+  description: string;
+}
+
 const QRScanner: React.FC<QRScannerProps> = ({ onBack }) => {
-  const [scannedData, setScannedData] = useState<string | null>(null);
+  const [scannedData, setScannedData] = useState<ScannedPaymentRequest | null>(null);
   const [amount, setAmount] = useState('');
   const [isScanning, setIsScanning] = useState(false);
 
