@@ -29,6 +29,8 @@ const FraudReport: React.FC<FraudReportProps> = ({ recipientId, recipientName, a
   const [open, setOpen] = useState(false);
   const { user, updateProfile } = useAuth();
 
+  const isDemoUser = !!user && (user.email?.toLowerCase() === 'demo@demo.com' || user.id === '3');
+
   const reportTypes = [
     { value: 'fraud', label: 'Fraudulent Activity' },
     { value: 'scam', label: 'Scam/Phishing' },
@@ -39,6 +41,23 @@ const FraudReport: React.FC<FraudReportProps> = ({ recipientId, recipientName, a
   ];
 
   const handleSubmitReport = async () => {
+    if (!user) {
+      toast({
+        title: "Not signed in",
+        description: "Please log in to submit a fraud report.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isDemoUser) {
+      toast({
+        title: "Demo account restriction",
+        description: "Demo account cannot submit fraud reports. Please sign up or log in with a regular account.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (!reportType || !description) {
       toast({
         title: "Missing Information",
@@ -88,7 +107,7 @@ const FraudReport: React.FC<FraudReportProps> = ({ recipientId, recipientName, a
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50">
+        <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" disabled={!user || isDemoUser}>
           <AlertTriangle className="w-4 h-4 mr-2" />
           Report Fraud
         </Button>
