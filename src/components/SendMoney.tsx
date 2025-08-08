@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,15 +17,13 @@ import {
   AlertTriangle,
   Zap,
   CreditCard,
-  UserX,
-  Plus
+  UserX
 } from 'lucide-react';
 import ReviewSystem from './ReviewSystem';
 import FraudReport from './FraudReport';
 import ComplaintStatus from './ComplaintStatus';
 import { useTransaction } from '@/contexts/TransactionContext';
 import { useToast } from '@/hooks/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 interface SendMoneyProps {
   onBack: () => void;
@@ -41,20 +39,32 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
   const { toast } = useToast();
 
   type Contact = { 
-    id: string; name: string; email: string; avatar: string; lastSent: string; rating: number; reviewCount: number; trustScore: 'high'|'medium'|'low'; flagged?: boolean; spamCount: number; fraudCount: number; criminalCount: number; 
+    id: string; name: string; email: string; avatar: string; lastSent: string; rating: number; reviewCount: number; trustScore: 'high'|'medium'|'low'; flagged?: boolean; spamCount: number; fraudCount: number; criminalCount: number; mode?: 'contacts'|'phone'|'upi'|'bank';
   };
 
-  const [recentContacts, setRecentContacts] = useState<Contact[]>([
-    { id: '1', name: 'Sarah Johnson', email: 'sarah@email.com', avatar: 'SJ', lastSent: '$50.00', rating: 4.5, reviewCount: 12, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0 },
-    { id: '2', name: 'John Doe', email: 'john@email.com', avatar: 'JD', lastSent: '$125.00', rating: 2.1, reviewCount: 8, trustScore: 'low', flagged: true, spamCount: 2, fraudCount: 1, criminalCount: 0 },
-    { id: '3', name: 'Emma Wilson', email: 'emma@email.com', avatar: 'EW', lastSent: '$25.00', rating: 4.8, reviewCount: 25, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0 },
-    { id: '4', name: 'Mike Chen', email: 'mike@email.com', avatar: 'MC', lastSent: '$75.00', rating: 3.2, reviewCount: 5, trustScore: 'medium', spamCount: 1, fraudCount: 0, criminalCount: 1 },
-    { id: '5', name: 'Lisa Anderson', email: 'lisa@email.com', avatar: 'LA', lastSent: '$200.00', rating: 4.7, reviewCount: 18, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0 },
-  ]);
+  const [recentContacts, setRecentContacts] = useState<Contact[]>(() => {
+    try {
+      const stored = localStorage.getItem('recentContacts');
+      if (stored) return JSON.parse(stored) as Contact[];
+    } catch {
+      // ignore
+    }
+    return [
+      { id: '1', name: 'Sarah Johnson', email: 'sarah@email.com', avatar: 'SJ', lastSent: '$50.00', rating: 4.5, reviewCount: 12, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0, mode: 'contacts' },
+      { id: '2', name: 'John Doe', email: 'john@email.com', avatar: 'JD', lastSent: '$125.00', rating: 2.1, reviewCount: 8, trustScore: 'low', flagged: true, spamCount: 2, fraudCount: 1, criminalCount: 0, mode: 'contacts' },
+      { id: '3', name: 'Emma Wilson', email: 'emma@email.com', avatar: 'EW', lastSent: '$25.00', rating: 4.8, reviewCount: 25, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0, mode: 'contacts' },
+      { id: '4', name: 'Mike Chen', email: 'mike@email.com', avatar: 'MC', lastSent: '$75.00', rating: 3.2, reviewCount: 5, trustScore: 'medium', spamCount: 1, fraudCount: 0, criminalCount: 1, mode: 'contacts' },
+      { id: '5', name: 'Lisa Anderson', email: 'lisa@email.com', avatar: 'LA', lastSent: '$200.00', rating: 4.7, reviewCount: 18, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0, mode: 'contacts' },
+    ];
+  });
 
-  const [addContactOpen, setAddContactOpen] = useState(false);
-  const [newContactName, setNewContactName] = useState('');
-  const [newContactEmail, setNewContactEmail] = useState('');
+  useEffect(() => {
+    try {
+      localStorage.setItem('recentContacts', JSON.stringify(recentContacts));
+    } catch {
+      // ignore quota errors
+    }
+  }, [recentContacts]);
 
   const [selectedMethod, setSelectedMethod] = useState<'contacts'|'phone'|'upi'|'bank'>('contacts');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -64,16 +74,22 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
 
   const selectedContactData = recentContacts.find(contact => contact.id === selectedContact);
 
-  const handleAddContact = () => {
-    if (!newContactName || !newContactEmail) return;
-    const id = Math.random().toString(36).slice(2);
-    setRecentContacts(prev => [
-      { id, name: newContactName, email: newContactEmail, avatar: newContactName.split(' ').map(n=>n[0]).join('').toUpperCase(), lastSent: '$0.00', rating: 0, reviewCount: 0, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0 },
-      ...prev
-    ]);
-    setNewContactName('');
-    setNewContactEmail('');
-    setAddContactOpen(false);
+  const upsertRecent = (contact: Contact) => {
+    setRecentContacts(prev => {
+      const existingIndex = prev.findIndex(c => c.id === contact.id);
+      let updated: Contact[];
+      if (existingIndex >= 0) {
+        const merged = { ...prev[existingIndex], ...contact };
+        updated = [...prev];
+        updated[existingIndex] = merged;
+      } else {
+        updated = [contact, ...prev];
+      }
+      // Move target to top
+      const target = updated.find(c => c.id === contact.id)!;
+      const rest = updated.filter(c => c.id !== contact.id);
+      return [target, ...rest];
+    });
   };
 
   const handleSendMoney = async () => {
@@ -134,23 +150,71 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
       status: 'completed'
     });
 
-    // Update recent contacts for selected contact
+    // Update recent contacts for any selected method
+    const lastSent = `$${amountNumber.toFixed(2)}`;
     if (selectedMethod === 'contacts' && selectedContactData) {
-      setRecentContacts(prev => {
-        const updated = prev.map(c => c.id === selectedContactData.id ? { ...c, lastSent: `$${amountNumber.toFixed(2)}` } : c);
-        // Move selected contact to top
-        const selected = updated.find(c => c.id === selectedContactData.id)!;
-        const rest = updated.filter(c => c.id !== selectedContactData.id);
-        return [selected, ...rest];
+      upsertRecent({ ...selectedContactData, lastSent, mode: 'contacts' });
+    } else if (selectedMethod === 'phone') {
+      const id = `phone:${phoneNumber}`;
+      upsertRecent({
+        id,
+        name: phoneNumber,
+        email: `Phone: ${phoneNumber}`,
+        avatar: 'PH',
+        lastSent,
+        rating: 0,
+        reviewCount: 0,
+        trustScore: 'high',
+        spamCount: 0,
+        fraudCount: 0,
+        criminalCount: 0,
+        mode: 'phone'
       });
+      setSelectedContact(id);
+    } else if (selectedMethod === 'upi') {
+      const normalized = upiId.toLowerCase();
+      const id = `upi:${normalized}`;
+      upsertRecent({
+        id,
+        name: normalized,
+        email: normalized,
+        avatar: 'UP',
+        lastSent,
+        rating: 0,
+        reviewCount: 0,
+        trustScore: 'high',
+        spamCount: 0,
+        fraudCount: 0,
+        criminalCount: 0,
+        mode: 'upi'
+      });
+      setSelectedContact(id);
+    } else if (selectedMethod === 'bank') {
+      const normalizedIfsc = ifsc.toUpperCase();
+      const id = `bank:${bankAccount}-${normalizedIfsc}`;
+      upsertRecent({
+        id,
+        name: `A/C ${bankAccount}`,
+        email: normalizedIfsc,
+        avatar: 'BK',
+        lastSent,
+        rating: 0,
+        reviewCount: 0,
+        trustScore: 'high',
+        spamCount: 0,
+        fraudCount: 0,
+        criminalCount: 0,
+        mode: 'bank'
+      });
+      setSelectedContact(id);
     }
 
     setTimeout(() => {
       toast({ title: "Money Sent Successfully", description: `$${amountNumber.toFixed(2)} has been sent to ${recipientLabel}` });
       setAmount('');
       setNote('');
-      setSelectedContact(null);
-      setShowReviews(false);
+      // Keep selected contact so user can review after sending
+      setShowReviews(true);
       setIsSubmitting(false);
       setPhoneNumber('');
       setUpiId('');
@@ -294,29 +358,7 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
         <Card className="mb-6">
           <CardHeader className="pb-3 flex items-center justify-between">
             <CardTitle className="text-lg">Recent Contacts</CardTitle>
-            <Dialog open={addContactOpen} onOpenChange={setAddContactOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <Plus className="w-4 h-4 mr-1" /> Add
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add New Contact</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-3">
-                  <div>
-                    <Label>Name</Label>
-                    <Input value={newContactName} onChange={(e)=>setNewContactName(e.target.value)} placeholder="Full name" />
-                  </div>
-                  <div>
-                    <Label>Email</Label>
-                    <Input value={newContactEmail} onChange={(e)=>setNewContactEmail(e.target.value)} placeholder="Email address" />
-                  </div>
-                  <Button onClick={handleAddContact} disabled={!newContactName || !newContactEmail} className="w-full">Add Contact</Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+            {/* Removed Add button and dialog */}
           </CardHeader>
           <CardContent className="space-y-3">
             {recentContacts.map((contact) => (
@@ -392,8 +434,16 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
           <ReviewSystem 
             recipientId={selectedContactData.id}
             recipientName={selectedContactData.name}
-            onReviewsUpdated={(avg, count) => {
-              setRecentContacts(prev => prev.map(c => c.id === selectedContactData.id ? { ...c, rating: Number(avg.toFixed(1)), reviewCount: count } : c));
+            onReviewsUpdated={(avg, count, flags) => {
+              setRecentContacts(prev => prev.map(c => c.id === selectedContactData.id ? { 
+                ...c, 
+                rating: Number((avg || 0).toFixed(1)), 
+                reviewCount: count || 0,
+                spamCount: flags?.spam ?? c.spamCount,
+                fraudCount: flags?.fraud ?? c.fraudCount,
+                criminalCount: flags?.criminal ?? c.criminalCount,
+                flagged: !!flags && ((flags.spam || 0) + (flags.fraud || 0) + (flags.criminal || 0) > 0)
+              } : c));
             }}
           />
         )}
