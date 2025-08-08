@@ -53,6 +53,7 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
   const [open, setOpen] = useState(false);
 
   const [reviews, setReviews] = useState<Review[]>([]);
+  const isDemoUser = !!user && (user.email?.toLowerCase() === 'demo@demo.com' || user.id === '3');
 
   useEffect(() => {
     try {
@@ -82,6 +83,20 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
       // ignore
     }
   }, [recipientId, reviews]);
+
+  // Emit updated stats whenever reviews change so parent can sync rating/flags on selection
+  useEffect(() => {
+    if (!onReviewsUpdated) return;
+    const count = reviews.length;
+    const avg = count > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / count : 0;
+    const flags = (() => {
+      const stats = { spam: 0, fraud: 0, criminal: 0 };
+      reviews.forEach(r => r.categories?.forEach(c => { if (c === 'spam' || c === 'fraud' || c === 'criminal') { (stats as any)[c]++; } }));
+      return stats;
+    })();
+    onReviewsUpdated(avg, count, flags);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reviews]);
 
   // Prefill dialog fields when opening for edit
   useEffect(() => {
@@ -166,6 +181,16 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
       toast({
         title: "Not signed in",
         description: "Please log in to submit a review.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Block demo account from submitting reviews
+    if (isDemoUser) {
+      toast({
+        title: "Demo account restriction",
+        description: "Demo account cannot submit reviews. Please sign up or log in with a regular account.",
         variant: "destructive",
       });
       return;
@@ -356,7 +381,7 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
         {/* Add / Edit Review */}
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full" disabled={!user || isDemoUser}>
               {reviews.some(r => r.userId === (user?.id || 'current-user')) ? 'Edit Your Review' : 'Write a Review'}
             </Button>
           </DialogTrigger>

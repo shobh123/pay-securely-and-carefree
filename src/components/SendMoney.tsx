@@ -277,7 +277,7 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
       setUpiId('');
       setBankAccount('');
       setIfsc('');
-      onBack();
+      // Stay on this page to allow immediate review
     }, 2000);
   };
 
@@ -513,15 +513,24 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
             recipientId={selectedContactData.id}
             recipientName={selectedContactData.name}
             onReviewsUpdated={(avg, count, flags) => {
-              setRecentContacts(prev => prev.map(c => c.id === selectedContactData.id ? { 
-                ...c, 
-                rating: Number((avg || 0).toFixed(1)), 
-                reviewCount: count || 0,
-                spamCount: flags?.spam ?? c.spamCount,
-                fraudCount: flags?.fraud ?? c.fraudCount,
-                criminalCount: flags?.criminal ?? c.criminalCount,
-                flagged: !!flags && ((flags.spam || 0) + (flags.fraud || 0) + (flags.criminal || 0) > 0)
-              } : c));
+              setRecentContacts(prev => prev.map(c => {
+                if (c.id !== selectedContactData.id) return c;
+                const average = Number((avg || 0).toFixed(1));
+                const totalReports = (flags?.spam || 0) + (flags?.fraud || 0) + (flags?.criminal || 0);
+                let trust: 'high' | 'medium' | 'low' = 'high';
+                if (average < 2.5 || totalReports > 1) trust = 'low';
+                else if (average < 4 || totalReports === 1) trust = 'medium';
+                return {
+                  ...c,
+                  rating: average,
+                  reviewCount: count || 0,
+                  spamCount: flags?.spam ?? c.spamCount,
+                  fraudCount: flags?.fraud ?? c.fraudCount,
+                  criminalCount: flags?.criminal ?? c.criminalCount,
+                  flagged: totalReports > 0,
+                  trustScore: trust,
+                };
+              }));
             }}
           />
         )}
