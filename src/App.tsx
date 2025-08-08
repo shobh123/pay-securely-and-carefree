@@ -11,6 +11,7 @@ import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
+import { ContactsProvider } from "@/contexts/ContactsContext";
 
 const queryClient = new QueryClient();
 
@@ -74,13 +75,15 @@ const App = () => (
       <AuthProvider>
         <TransactionProvider>
           <ComplaintsProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <BrowserRouter>
-                <AppRoutes />
-              </BrowserRouter>
-            </TooltipProvider>
+            <ContactsProvider>
+              <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <BrowserRouter>
+                  <AppRoutes />
+                </BrowserRouter>
+              </TooltipProvider>
+            </ContactsProvider>
           </ComplaintsProvider>
         </TransactionProvider>
       </AuthProvider>

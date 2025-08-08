@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,18 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Star, AlertTriangle, Shield, Flag, Zap, CreditCard, UserX } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-
-interface Review {
-  id: string;
-  userId: string;
-  userName: string;
-  rating: number;
-  comment: string;
-  date: string;
-  verified: boolean;
-  flagged?: boolean;
-  categories?: ('spam' | 'fraud' | 'criminal')[];
-}
+import { useContacts, Review as ContactReview } from '@/contexts/ContactsContext';
 
 interface ReviewSystemProps {
   recipientId: string;
@@ -35,40 +24,10 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
   const [selectedCategories, setSelectedCategories] = useState<('spam' | 'fraud' | 'criminal')[]>([]);
   const { toast } = useToast();
   const { user, updateProfile } = useAuth();
+  const { getReviews, addOrUpdateReview } = useContacts();
   const [open, setOpen] = useState(false);
 
-  // Mock reviews data
-  const [reviews, setReviews] = useState<Review[]>([
-    {
-      id: '1',
-      userId: 'user1',
-      userName: 'John D.',
-      rating: 5,
-      comment: 'Fast and reliable payment. Highly recommended!',
-      date: '2024-01-10',
-      verified: true
-    },
-    {
-      id: '2',
-      userId: 'user2',
-      userName: 'Sarah M.',
-      rating: 2,
-      comment: 'Payment was delayed and had to follow up multiple times.',
-      date: '2024-01-08',
-      verified: true,
-      flagged: true,
-      categories: ['spam']
-    },
-    {
-      id: '3',
-      userId: 'user3',
-      userName: 'Mike R.',
-      rating: 4,
-      comment: 'Good service overall, minor delays but resolved quickly.',
-      date: '2024-01-05',
-      verified: false
-    }
-  ]);
+  const reviews = getReviews(recipientId);
 
   const averageRating = reviews.length > 0 
     ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length 
@@ -76,7 +35,7 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
 
   const flaggedReviews = reviews.filter(review => review.flagged).length;
   
-  const getCategoryStats = () => {
+  const categoryStats = useMemo(() => {
     const stats = { spam: 0, fraud: 0, criminal: 0 };
     reviews.forEach(review => {
       review.categories?.forEach(category => {
@@ -84,9 +43,7 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
       });
     });
     return stats;
-  };
-
-  const categoryStats = getCategoryStats();
+  }, [reviews]);
 
   const getCategoryIcon = (category: 'spam' | 'fraud' | 'criminal') => {
     switch (category) {
@@ -123,30 +80,19 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
     const currentUserName = user?.name || 'You';
     const currentUserId = user?.id || 'current-user';
 
-    setReviews(prev => {
-      const existingIndex = prev.findIndex(r => r.userId === currentUserId);
-      const updated: Review = {
-        id: existingIndex >= 0 ? prev[existingIndex].id : Math.random().toString(36).slice(2),
-        userId: currentUserId,
-        userName: currentUserName,
-        rating,
-        comment,
-        date: now,
-        verified: true,
-        categories: selectedCategories.length ? selectedCategories : undefined
-      };
-      if (existingIndex >= 0) {
-        const copy = [...prev];
-        copy[existingIndex] = updated;
-        return copy;
-      }
-      return [updated, ...prev];
-    });
+    const review: ContactReview = {
+      id: '',
+      userId: currentUserId,
+      userName: currentUserName,
+      rating,
+      comment,
+      date: now,
+      verified: true,
+      categories: selectedCategories.length ? selectedCategories : undefined
+    };
 
-    // Notify parent of updated stats
-    const newCount = reviews.length + (reviews.some(r => r.userId === (user?.id || 'current-user')) ? 0 : 1);
-    const newAverage = (reviews.reduce((sum, r) => sum + r.rating, 0) + rating - (reviews.find(r => r.userId === (user?.id || 'current-user'))?.rating || 0)) / newCount;
-    onReviewsUpdated?.(newAverage, newCount, categoryStats);
+    const { average, count } = addOrUpdateReview(recipientId, review);
+    onReviewsUpdated?.(average, count, categoryStats);
 
     toast({
       title: "Review Submitted Successfully",

@@ -26,6 +26,7 @@ import ComplaintStatus from './ComplaintStatus';
 import { useTransaction } from '@/contexts/TransactionContext';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useContacts } from '@/contexts/ContactsContext';
 
 interface SendMoneyProps {
   onBack: () => void;
@@ -39,18 +40,7 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { addTransaction, deductBalance } = useTransaction();
   const { toast } = useToast();
-
-  type Contact = { 
-    id: string; name: string; email: string; avatar: string; lastSent: string; rating: number; reviewCount: number; trustScore: 'high'|'medium'|'low'; flagged?: boolean; spamCount: number; fraudCount: number; criminalCount: number; 
-  };
-
-  const [recentContacts, setRecentContacts] = useState<Contact[]>([
-    { id: '1', name: 'Sarah Johnson', email: 'sarah@email.com', avatar: 'SJ', lastSent: '$50.00', rating: 4.5, reviewCount: 12, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0 },
-    { id: '2', name: 'John Doe', email: 'john@email.com', avatar: 'JD', lastSent: '$125.00', rating: 2.1, reviewCount: 8, trustScore: 'low', flagged: true, spamCount: 2, fraudCount: 1, criminalCount: 0 },
-    { id: '3', name: 'Emma Wilson', email: 'emma@email.com', avatar: 'EW', lastSent: '$25.00', rating: 4.8, reviewCount: 25, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0 },
-    { id: '4', name: 'Mike Chen', email: 'mike@email.com', avatar: 'MC', lastSent: '$75.00', rating: 3.2, reviewCount: 5, trustScore: 'medium', spamCount: 1, fraudCount: 0, criminalCount: 1 },
-    { id: '5', name: 'Lisa Anderson', email: 'lisa@email.com', avatar: 'LA', lastSent: '$200.00', rating: 4.7, reviewCount: 18, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0 },
-  ]);
+  const { contacts, addContact, recordSendToContact, updateContact } = useContacts();
 
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [newContactName, setNewContactName] = useState('');
@@ -62,15 +52,12 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
   const [bankAccount, setBankAccount] = useState('');
   const [ifsc, setIfsc] = useState('');
 
-  const selectedContactData = recentContacts.find(contact => contact.id === selectedContact);
+  const selectedContactData = contacts.find(contact => contact.id === selectedContact);
 
   const handleAddContact = () => {
     if (!newContactName || !newContactEmail) return;
-    const id = Math.random().toString(36).slice(2);
-    setRecentContacts(prev => [
-      { id, name: newContactName, email: newContactEmail, avatar: newContactName.split(' ').map(n=>n[0]).join('').toUpperCase(), lastSent: '$0.00', rating: 0, reviewCount: 0, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0 },
-      ...prev
-    ]);
+    const c = addContact(newContactName, newContactEmail);
+    setSelectedContact(c.id);
     setNewContactName('');
     setNewContactEmail('');
     setAddContactOpen(false);
@@ -134,15 +121,8 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
       status: 'completed'
     });
 
-    // Update recent contacts for selected contact
     if (selectedMethod === 'contacts' && selectedContactData) {
-      setRecentContacts(prev => {
-        const updated = prev.map(c => c.id === selectedContactData.id ? { ...c, lastSent: `$${amountNumber.toFixed(2)}` } : c);
-        // Move selected contact to top
-        const selected = updated.find(c => c.id === selectedContactData.id)!;
-        const rest = updated.filter(c => c.id !== selectedContactData.id);
-        return [selected, ...rest];
-      });
+      recordSendToContact(selectedContactData.id, amountNumber);
     }
 
     setTimeout(() => {
@@ -157,7 +137,7 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
       setBankAccount('');
       setIfsc('');
       onBack();
-    }, 2000);
+    }, 1200);
   };
 
   const getTrustScoreColor = (score: string) => {
@@ -319,7 +299,7 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
             </Dialog>
           </CardHeader>
           <CardContent className="space-y-3">
-            {recentContacts.map((contact) => (
+            {contacts.map((contact) => (
               <div
                 key={contact.id}
                 onClick={() => {
@@ -393,7 +373,7 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
             recipientId={selectedContactData.id}
             recipientName={selectedContactData.name}
             onReviewsUpdated={(avg, count) => {
-              setRecentContacts(prev => prev.map(c => c.id === selectedContactData.id ? { ...c, rating: Number(avg.toFixed(1)), reviewCount: count } : c));
+              updateContact(selectedContactData.id, { rating: Number(avg.toFixed(1)), reviewCount: count });
             }}
           />
         )}

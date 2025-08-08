@@ -13,6 +13,8 @@ import {
   Check,
   X
 } from 'lucide-react';
+import { useTransaction } from '@/contexts/TransactionContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface QRScannerProps {
   onBack: () => void;
@@ -30,6 +32,8 @@ const QRScanner: React.FC<QRScannerProps> = ({ onBack }) => {
   const [scannedData, setScannedData] = useState<ScannedPaymentRequest | null>(null);
   const [amount, setAmount] = useState('');
   const [isScanning, setIsScanning] = useState(false);
+  const { addTransaction, deductBalance } = useTransaction();
+  const { toast } = useToast();
 
   // Simulate QR scan
   const handleScan = () => {
@@ -43,6 +47,32 @@ const QRScanner: React.FC<QRScannerProps> = ({ onBack }) => {
       });
       setIsScanning(false);
     }, 2000);
+  };
+
+  const handlePay = () => {
+    if (!scannedData) return;
+    const selectedAmount = parseFloat(amount || scannedData.amount);
+    if (isNaN(selectedAmount) || selectedAmount <= 0) {
+      toast({ title: 'Invalid amount', description: 'Enter a valid amount.', variant: 'destructive' });
+      return;
+    }
+    const ok = deductBalance(selectedAmount);
+    if (!ok) {
+      toast({ title: 'Insufficient Balance', description: 'You do not have enough balance to pay.', variant: 'destructive' });
+      return;
+    }
+    addTransaction({
+      type: 'sent',
+      amount: selectedAmount,
+      recipient: scannedData.merchant,
+      description: scannedData.description || `QR payment to ${scannedData.merchant}`,
+      category: 'Transfer',
+      status: 'completed'
+    });
+    toast({ title: 'Payment Successful', description: `Paid $${selectedAmount.toFixed(2)} to ${scannedData.merchant}` });
+    setScannedData(null);
+    setAmount('');
+    onBack();
   };
 
   return (
@@ -149,7 +179,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onBack }) => {
               Cancel
             </Button>
             
-            <Button className="h-12 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+            <Button onClick={handlePay} className="h-12 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
               <Check className="w-5 h-5 mr-2" />
               Pay ${amount || scannedData.amount}
             </Button>
