@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +31,8 @@ interface SendMoneyProps {
   onBack: () => void;
 }
 
+const STORAGE_KEY_CONTACTS = 'recentContacts';
+
 const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
   const [amount, setAmount] = useState('');
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
@@ -41,20 +43,40 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
   const { toast } = useToast();
 
   type Contact = { 
-    id: string; name: string; email: string; avatar: string; lastSent: string; rating: number; reviewCount: number; trustScore: 'high'|'medium'|'low'; flagged?: boolean; spamCount: number; fraudCount: number; criminalCount: number; 
+    id: string; name: string; email: string; phone: string; avatar: string; lastSent: string; rating: number; reviewCount: number; trustScore: 'high'|'medium'|'low'; flagged?: boolean; spamCount: number; fraudCount: number; criminalCount: number; 
   };
 
-  const [recentContacts, setRecentContacts] = useState<Contact[]>([
-    { id: '1', name: 'Sarah Johnson', email: 'sarah@email.com', avatar: 'SJ', lastSent: '$50.00', rating: 4.5, reviewCount: 12, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0 },
-    { id: '2', name: 'John Doe', email: 'john@email.com', avatar: 'JD', lastSent: '$125.00', rating: 2.1, reviewCount: 8, trustScore: 'low', flagged: true, spamCount: 2, fraudCount: 1, criminalCount: 0 },
-    { id: '3', name: 'Emma Wilson', email: 'emma@email.com', avatar: 'EW', lastSent: '$25.00', rating: 4.8, reviewCount: 25, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0 },
-    { id: '4', name: 'Mike Chen', email: 'mike@email.com', avatar: 'MC', lastSent: '$75.00', rating: 3.2, reviewCount: 5, trustScore: 'medium', spamCount: 1, fraudCount: 0, criminalCount: 1 },
-    { id: '5', name: 'Lisa Anderson', email: 'lisa@email.com', avatar: 'LA', lastSent: '$200.00', rating: 4.7, reviewCount: 18, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0 },
+  const [recentContacts, setRecentContacts] = useState<Contact[]>([ 
+    { id: '1', name: 'Sarah Johnson', email: 'sarah@email.com', phone: '+1 555-0101', avatar: 'SJ', lastSent: '$50.00', rating: 4.5, reviewCount: 12, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0 },
+    { id: '2', name: 'John Doe', email: 'john@email.com', phone: '+1 555-0102', avatar: 'JD', lastSent: '$125.00', rating: 2.1, reviewCount: 8, trustScore: 'low', flagged: true, spamCount: 2, fraudCount: 1, criminalCount: 0 },
+    { id: '3', name: 'Emma Wilson', email: 'emma@email.com', phone: '+1 555-0103', avatar: 'EW', lastSent: '$25.00', rating: 4.8, reviewCount: 25, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0 },
+    { id: '4', name: 'Mike Chen', email: 'mike@email.com', phone: '+1 555-0104', avatar: 'MC', lastSent: '$75.00', rating: 3.2, reviewCount: 5, trustScore: 'medium', spamCount: 1, fraudCount: 0, criminalCount: 1 },
+    { id: '5', name: 'Lisa Anderson', email: 'lisa@email.com', phone: '+1 555-0105', avatar: 'LA', lastSent: '$200.00', rating: 4.7, reviewCount: 18, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0 },
   ]);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_CONTACTS);
+      if (stored) {
+        setRecentContacts(JSON.parse(stored) as Contact[]);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_CONTACTS, JSON.stringify(recentContacts));
+    } catch {
+      // ignore
+    }
+  }, [recentContacts]);
 
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [newContactName, setNewContactName] = useState('');
   const [newContactEmail, setNewContactEmail] = useState('');
+  const [newContactPhone, setNewContactPhone] = useState('');
 
   const [selectedMethod, setSelectedMethod] = useState<'contacts'|'phone'|'upi'|'bank'>('contacts');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -65,14 +87,15 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
   const selectedContactData = recentContacts.find(contact => contact.id === selectedContact);
 
   const handleAddContact = () => {
-    if (!newContactName || !newContactEmail) return;
+    if (!newContactName || !newContactEmail || !newContactPhone) return;
     const id = Math.random().toString(36).slice(2);
     setRecentContacts(prev => [
-      { id, name: newContactName, email: newContactEmail, avatar: newContactName.split(' ').map(n=>n[0]).join('').toUpperCase(), lastSent: '$0.00', rating: 0, reviewCount: 0, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0 },
+      { id, name: newContactName, email: newContactEmail, phone: newContactPhone, avatar: newContactName.split(' ').map(n=>n[0]).join('').toUpperCase(), lastSent: '$0.00', rating: 0, reviewCount: 0, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0 },
       ...prev
     ]);
     setNewContactName('');
     setNewContactEmail('');
+    setNewContactPhone('');
     setAddContactOpen(false);
   };
 
@@ -313,7 +336,11 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
                     <Label>Email</Label>
                     <Input value={newContactEmail} onChange={(e)=>setNewContactEmail(e.target.value)} placeholder="Email address" />
                   </div>
-                  <Button onClick={handleAddContact} disabled={!newContactName || !newContactEmail} className="w-full">Add Contact</Button>
+                  <div>
+                    <Label>Phone</Label>
+                    <Input value={newContactPhone} onChange={(e)=>setNewContactPhone(e.target.value)} placeholder="Phone number" />
+                  </div>
+                  <Button onClick={handleAddContact} disabled={!newContactName || !newContactEmail || !newContactPhone} className="w-full">Add Contact</Button>
                 </div>
               </DialogContent>
             </Dialog>
@@ -357,6 +384,7 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
                         )}
                       </div>
                       <p className="text-xs text-gray-500">{contact.email}</p>
+                      <p className="text-xs text-gray-500">{contact.phone}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <div className="flex items-center gap-1">
                           {renderStars(contact.rating)}
@@ -392,8 +420,20 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
           <ReviewSystem 
             recipientId={selectedContactData.id}
             recipientName={selectedContactData.name}
-            onReviewsUpdated={(avg, count) => {
-              setRecentContacts(prev => prev.map(c => c.id === selectedContactData.id ? { ...c, rating: Number(avg.toFixed(1)), reviewCount: count } : c));
+            onReviewsUpdated={(avg, count, categoryStats) => {
+              setRecentContacts(prev => prev.map(c => {
+                if (c.id !== selectedContactData.id) return c;
+                const newTrust = avg >= 4 ? 'high' : avg >= 3 ? 'medium' : 'low';
+                return {
+                  ...c,
+                  rating: Number(avg.toFixed(1)),
+                  reviewCount: count,
+                  trustScore: newTrust,
+                  spamCount: categoryStats?.spam ?? c.spamCount,
+                  fraudCount: categoryStats?.fraud ?? c.fraudCount,
+                  criminalCount: categoryStats?.criminal ?? c.criminalCount,
+                };
+              }));
             }}
           />
         )}
