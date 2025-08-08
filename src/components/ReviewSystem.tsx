@@ -19,7 +19,7 @@ interface Review {
   date: string;
   verified: boolean;
   flagged?: boolean;
-  categories?: ('spam' | 'fraud' | 'criminal')[];
+  categories?: string[];
 }
 
 interface ReviewSystemProps {
@@ -30,11 +30,24 @@ interface ReviewSystemProps {
 
 const storageKeyFor = (recipientId: string) => `reviews:${recipientId}`;
 
+const DEFAULT_CATEGORIES: string[] = [
+  'spam',
+  'fraud',
+  'criminal',
+  'harassment',
+  'impersonation',
+  'money_laundering',
+  'fake_goods',
+  'chargeback',
+  'other'
+];
+
 const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName, onReviewsUpdated }) => {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [hoveredStar, setHoveredStar] = useState(0);
-  const [selectedCategories, setSelectedCategories] = useState<('spam' | 'fraud' | 'criminal')[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [customCategory, setCustomCategory] = useState('');
   const { toast } = useToast();
   const { user, updateProfile } = useAuth();
   const [open, setOpen] = useState(false);
@@ -70,17 +83,37 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
     }
   }, [recipientId, reviews]);
 
+  // Prefill dialog fields when opening for edit
+  useEffect(() => {
+    if (!open) return;
+    if (!user) return;
+    const existing = reviews.find(r => r.userId === (user?.id || 'current-user'));
+    if (existing) {
+      setRating(existing.rating);
+      setComment(existing.comment);
+      setSelectedCategories(existing.categories || []);
+    } else {
+      setRating(0);
+      setComment('');
+      setSelectedCategories([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   const averageRating = reviews.length > 0 
     ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length 
     : 0;
 
-  const flaggedReviews = reviews.filter(review => review.flagged).length;
+  const flaggedReviews = reviews.filter(review => review.flagged || (review.categories && review.categories.length > 0)).length;
   
   const getCategoryStats = () => {
     const stats = { spam: 0, fraud: 0, criminal: 0 };
     reviews.forEach(review => {
       review.categories?.forEach(category => {
-        stats[category]++;
+        if (category === 'spam' || category === 'fraud' || category === 'criminal') {
+          // Count only primary categories for contact summary
+          (stats as any)[category]++;
+        }
       });
     });
     return stats;
@@ -88,20 +121,35 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
 
   const categoryStats = getCategoryStats();
 
-  const getCategoryIcon = (category: 'spam' | 'fraud' | 'criminal') => {
+  const getCategoryIcon = (category: string) => {
     switch (category) {
       case 'spam': return <Zap className="w-4 h-4 text-orange-500" />;
       case 'fraud': return <CreditCard className="w-4 h-4 text-red-500" />;
       case 'criminal': return <UserX className="w-4 h-4 text-purple-500" />;
+      case 'harassment': return <AlertTriangle className="w-4 h-4 text-red-500" />;
+      case 'impersonation': return <UserX className="w-4 h-4 text-amber-600" />;
+      case 'money_laundering': return <Shield className="w-4 h-4 text-blue-600" />;
+      case 'fake_goods': return <Flag className="w-4 h-4 text-gray-600" />;
+      case 'chargeback': return <CreditCard className="w-4 h-4 text-pink-600" />;
+      default: return <Flag className="w-4 h-4 text-gray-500" />;
     }
   };
 
-  const toggleCategory = (category: 'spam' | 'fraud' | 'criminal') => {
+  const toggleCategory = (category: string) => {
     setSelectedCategories(prev => 
       prev.includes(category) 
         ? prev.filter(c => c !== category)
         : [...prev, category]
     );
+  };
+
+  const addCustomCategory = () => {
+    const normalized = customCategory.trim().toLowerCase().replace(/\s+/g, '_');
+    if (!normalized) return;
+    if (!selectedCategories.includes(normalized)) {
+      setSelectedCategories(prev => [...prev, normalized]);
+    }
+    setCustomCategory('');
   };
 
   const handleSubmitReview = async () => {
@@ -157,7 +205,8 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
       comment,
       date: now,
       verified: true,
-      categories: selectedCategories.length ? selectedCategories : undefined
+      categories: selectedCategories.length ? selectedCategories : undefined,
+      flagged: selectedCategories.length > 0
     };
 
     const newReviews: Review[] = existingIndex >= 0
@@ -173,7 +222,7 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
       : 0;
     const newCategoryStats = (() => {
       const stats = { spam: 0, fraud: 0, criminal: 0 };
-      newReviews.forEach(r => r.categories?.forEach(c => { stats[c]++; }));
+      newReviews.forEach(r => r.categories?.forEach(c => { if (c === 'spam' || c === 'fraud' || c === 'criminal') { (stats as any)[c]++; } }));
       return stats;
     })();
     onReviewsUpdated?.(newAverage, newCount, newCategoryStats);
@@ -280,19 +329,26 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
                   {review.verified && (
                     <Shield className="w-4 h-4 text-green-500" />
                   )}
-                  {review.flagged && (
+                  {(review.flagged || (review.categories && review.categories.length > 0)) && (
                     <Flag className="w-4 h-4 text-red-500" />
                   )}
-                  {review.categories?.map(category => (
-                    <span key={category}>{getCategoryIcon(category)}</span>
-                  ))}
                 </div>
                 <span className="text-xs text-gray-500">{review.date}</span>
               </div>
               <div className="flex items-center gap-2 mb-2">
                 {renderStars(review.rating)}
               </div>
-              <p className="text-sm text-gray-700">{review.comment}</p>
+              <p className="text-sm text-gray-700 mb-2">{review.comment}</p>
+              {review.categories && review.categories.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {review.categories.map(category => (
+                    <Badge key={category} variant="outline" className="flex items-center gap-1">
+                      {getCategoryIcon(category)}
+                      <span className="capitalize">{category.replace(/_/g, ' ')}</span>
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -335,7 +391,7 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
               <div>
                 <Label>Report Categories (Optional)</Label>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {(['spam', 'fraud', 'criminal'] as const).map(category => (
+                  {DEFAULT_CATEGORIES.map(category => (
                     <Button
                       key={category}
                       type="button"
@@ -345,9 +401,17 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
                       className="flex items-center gap-1"
                     >
                       {getCategoryIcon(category)}
-                      {category.charAt(0).toUpperCase() + category.slice(1)}
+                      {category.charAt(0).toUpperCase() + category.slice(1).replace(/_/g, ' ')}
                     </Button>
                   ))}
+                </div>
+                <div className="flex items-center gap-2 mt-3">
+                  <Input 
+                    placeholder="Add your own flag (e.g., rude behavior)" 
+                    value={customCategory}
+                    onChange={(e) => setCustomCategory(e.target.value)}
+                  />
+                  <Button type="button" variant="secondary" onClick={addCustomCategory}>Add</Button>
                 </div>
               </div>
               <Button onClick={handleSubmitReview} className="w-full">

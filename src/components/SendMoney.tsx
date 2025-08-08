@@ -29,6 +29,16 @@ interface SendMoneyProps {
   onBack: () => void;
 }
 
+// New: per-contact payment history item
+type HistoryItem = {
+  id: string;
+  amount: number;
+  date: string;
+  note?: string;
+  method: 'contacts'|'phone'|'upi'|'bank';
+  recipientLabel: string;
+};
+
 const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
   const [amount, setAmount] = useState('');
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
@@ -39,22 +49,28 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
   const { toast } = useToast();
 
   type Contact = { 
-    id: string; name: string; email: string; avatar: string; lastSent: string; rating: number; reviewCount: number; trustScore: 'high'|'medium'|'low'; flagged?: boolean; spamCount: number; fraudCount: number; criminalCount: number; mode?: 'contacts'|'phone'|'upi'|'bank';
+    id: string; name: string; email: string; avatar: string; lastSent: string; rating: number; reviewCount: number; trustScore: 'high'|'medium'|'low'; flagged?: boolean; spamCount: number; fraudCount: number; criminalCount: number; mode?: 'contacts'|'phone'|'upi'|'bank'; history: HistoryItem[];
   };
 
   const [recentContacts, setRecentContacts] = useState<Contact[]>(() => {
     try {
       const stored = localStorage.getItem('recentContacts');
-      if (stored) return JSON.parse(stored) as Contact[];
+      if (stored) {
+        const parsed = JSON.parse(stored) as any[];
+        return parsed.map((c) => ({
+          history: Array.isArray((c as any).history) ? (c as any).history : [],
+          ...c,
+        })) as Contact[];
+      }
     } catch {
       // ignore
     }
     return [
-      { id: '1', name: 'Sarah Johnson', email: 'sarah@email.com', avatar: 'SJ', lastSent: '$50.00', rating: 4.5, reviewCount: 12, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0, mode: 'contacts' },
-      { id: '2', name: 'John Doe', email: 'john@email.com', avatar: 'JD', lastSent: '$125.00', rating: 2.1, reviewCount: 8, trustScore: 'low', flagged: true, spamCount: 2, fraudCount: 1, criminalCount: 0, mode: 'contacts' },
-      { id: '3', name: 'Emma Wilson', email: 'emma@email.com', avatar: 'EW', lastSent: '$25.00', rating: 4.8, reviewCount: 25, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0, mode: 'contacts' },
-      { id: '4', name: 'Mike Chen', email: 'mike@email.com', avatar: 'MC', lastSent: '$75.00', rating: 3.2, reviewCount: 5, trustScore: 'medium', spamCount: 1, fraudCount: 0, criminalCount: 1, mode: 'contacts' },
-      { id: '5', name: 'Lisa Anderson', email: 'lisa@email.com', avatar: 'LA', lastSent: '$200.00', rating: 4.7, reviewCount: 18, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0, mode: 'contacts' },
+      { id: '1', name: 'Sarah Johnson', email: 'sarah@email.com', avatar: 'SJ', lastSent: '$50.00', rating: 4.5, reviewCount: 12, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0, mode: 'contacts', history: [] },
+      { id: '2', name: 'John Doe', email: 'john@email.com', avatar: 'JD', lastSent: '$125.00', rating: 2.1, reviewCount: 8, trustScore: 'low', flagged: true, spamCount: 2, fraudCount: 1, criminalCount: 0, mode: 'contacts', history: [] },
+      { id: '3', name: 'Emma Wilson', email: 'emma@email.com', avatar: 'EW', lastSent: '$25.00', rating: 4.8, reviewCount: 25, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0, mode: 'contacts', history: [] },
+      { id: '4', name: 'Mike Chen', email: 'mike@email.com', avatar: 'MC', lastSent: '$75.00', rating: 3.2, reviewCount: 5, trustScore: 'medium', spamCount: 1, fraudCount: 0, criminalCount: 1, mode: 'contacts', history: [] },
+      { id: '5', name: 'Lisa Anderson', email: 'lisa@email.com', avatar: 'LA', lastSent: '$200.00', rating: 4.7, reviewCount: 18, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0, mode: 'contacts', history: [] },
     ];
   });
 
@@ -91,7 +107,11 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
       const existingIndex = prev.findIndex(c => c.id === contact.id);
       let updated: Contact[];
       if (existingIndex >= 0) {
-        const merged = { ...prev[existingIndex], ...contact };
+        const merged = { ...prev[existingIndex], ...contact } as Contact;
+        // Always preserve history if not provided in update payload
+        if (!('history' in contact)) {
+          merged.history = prev[existingIndex].history || [];
+        }
         updated = [...prev];
         updated[existingIndex] = merged;
       } else {
@@ -102,6 +122,18 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
       const rest = updated.filter(c => c.id !== contact.id);
       return [target, ...rest];
     });
+  };
+
+  // Append a history entry for a contact id
+  const appendHistory = (contactId: string, item: HistoryItem) => {
+    setRecentContacts(prev => prev.map(c => {
+      if (c.id !== contactId) return c;
+      return {
+        ...c,
+        lastSent: `$${item.amount.toFixed(2)}`,
+        history: [{ ...item }, ...(c.history || [])]
+      };
+    }));
   };
 
   const handleSendMoney = async () => {
@@ -162,13 +194,17 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
       status: 'completed'
     });
 
-    // Update recent contacts for any selected method
+    // Update recent contacts for any selected method and append history
     const lastSent = `$${amountNumber.toFixed(2)}`;
+    const nowIso = new Date().toISOString();
     if (selectedMethod === 'contacts' && selectedContactData) {
-      upsertRecent({ ...selectedContactData, lastSent, mode: 'contacts' });
+      const updated = { ...selectedContactData, lastSent, mode: 'contacts' } as Contact;
+      if (!updated.history) updated.history = [];
+      upsertRecent(updated);
+      appendHistory(updated.id, { id: Math.random().toString(36).slice(2), amount: amountNumber, date: nowIso, note, method: 'contacts', recipientLabel: recipientLabel! });
     } else if (selectedMethod === 'phone') {
       const id = `phone:${phoneNumber}`;
-      upsertRecent({
+      const contact: Contact = {
         id,
         name: phoneNumber,
         email: `Phone: ${phoneNumber}`,
@@ -180,13 +216,16 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
         spamCount: 0,
         fraudCount: 0,
         criminalCount: 0,
-        mode: 'phone'
-      });
+        mode: 'phone',
+        history: []
+      };
+      upsertRecent(contact);
       setSelectedContact(id);
+      appendHistory(id, { id: Math.random().toString(36).slice(2), amount: amountNumber, date: nowIso, note, method: 'phone', recipientLabel: recipientLabel! });
     } else if (selectedMethod === 'upi') {
       const normalized = upiId.toLowerCase();
       const id = `upi:${normalized}`;
-      upsertRecent({
+      const contact: Contact = {
         id,
         name: normalized,
         email: normalized,
@@ -198,13 +237,16 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
         spamCount: 0,
         fraudCount: 0,
         criminalCount: 0,
-        mode: 'upi'
-      });
+        mode: 'upi',
+        history: []
+      };
+      upsertRecent(contact);
       setSelectedContact(id);
+      appendHistory(id, { id: Math.random().toString(36).slice(2), amount: amountNumber, date: nowIso, note, method: 'upi', recipientLabel: recipientLabel! });
     } else if (selectedMethod === 'bank') {
       const normalizedIfsc = ifsc.toUpperCase();
       const id = `bank:${bankAccount}-${normalizedIfsc}`;
-      upsertRecent({
+      const contact: Contact = {
         id,
         name: `A/C ${bankAccount}`,
         email: normalizedIfsc,
@@ -216,9 +258,12 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
         spamCount: 0,
         fraudCount: 0,
         criminalCount: 0,
-        mode: 'bank'
-      });
+        mode: 'bank',
+        history: []
+      };
+      upsertRecent(contact);
       setSelectedContact(id);
+      appendHistory(id, { id: Math.random().toString(36).slice(2), amount: amountNumber, date: nowIso, note, method: 'bank', recipientLabel: recipientLabel! });
     }
 
     setTimeout(() => {
@@ -438,6 +483,25 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
                     {contact.lastSent}
                   </Badge>
                 </div>
+                {selectedContact === contact.id && contact.history && contact.history.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-purple-200">
+                    <p className="text-xs font-medium text-gray-600 mb-2">Payment History</p>
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {contact.history.map(h => (
+                        <div key={h.id} className="flex items-start justify-between text-xs">
+                          <div>
+                            <p className="font-medium">${h.amount.toFixed(2)}</p>
+                            {h.note && <p className="text-gray-600">{h.note}</p>}
+                          </div>
+                          <div className="text-right text-gray-500">
+                            <p>{new Date(h.date).toLocaleString()}</p>
+                            <p>{h.method.toUpperCase()}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </CardContent>
