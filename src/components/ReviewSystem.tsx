@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +28,8 @@ interface ReviewSystemProps {
   onReviewsUpdated?: (averageRating: number, count: number, flags?: { spam: number; fraud: number; criminal: number }) => void;
 }
 
+const storageKeyFor = (recipientId: string) => `reviews:${recipientId}`;
+
 const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName, onReviewsUpdated }) => {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -37,38 +39,36 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
   const { user, updateProfile } = useAuth();
   const [open, setOpen] = useState(false);
 
-  // Mock reviews data
-  const [reviews, setReviews] = useState<Review[]>([
-    {
-      id: '1',
-      userId: 'user1',
-      userName: 'John D.',
-      rating: 5,
-      comment: 'Fast and reliable payment. Highly recommended!',
-      date: '2024-01-10',
-      verified: true
-    },
-    {
-      id: '2',
-      userId: 'user2',
-      userName: 'Sarah M.',
-      rating: 2,
-      comment: 'Payment was delayed and had to follow up multiple times.',
-      date: '2024-01-08',
-      verified: true,
-      flagged: true,
-      categories: ['spam']
-    },
-    {
-      id: '3',
-      userId: 'user3',
-      userName: 'Mike R.',
-      rating: 4,
-      comment: 'Good service overall, minor delays but resolved quickly.',
-      date: '2024-01-05',
-      verified: false
+  const [reviews, setReviews] = useState<Review[]>([]);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(storageKeyFor(recipientId));
+      if (stored) {
+        setReviews(JSON.parse(stored) as Review[]);
+      } else {
+        // Seed with demo data once if nothing stored
+        const demo: Review[] = [
+          { id: '1', userId: 'user1', userName: 'John D.', rating: 5, comment: 'Fast and reliable payment. Highly recommended!', date: '2024-01-10', verified: true },
+          { id: '2', userId: 'user2', userName: 'Sarah M.', rating: 2, comment: 'Payment was delayed and had to follow up multiple times.', date: '2024-01-08', verified: true, flagged: true, categories: ['spam'] },
+          { id: '3', userId: 'user3', userName: 'Mike R.', rating: 4, comment: 'Good service overall, minor delays but resolved quickly.', date: '2024-01-05', verified: false },
+        ];
+        setReviews(demo);
+        localStorage.setItem(storageKeyFor(recipientId), JSON.stringify(demo));
+      }
+    } catch {
+      // ignore
     }
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipientId]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKeyFor(recipientId), JSON.stringify(reviews));
+    } catch {
+      // ignore
+    }
+  }, [recipientId, reviews]);
 
   const averageRating = reviews.length > 0 
     ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length 
@@ -111,7 +111,6 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName,
         description: "Please select a rating before submitting.",
         variant: "destructive"
       });
-      return;
     }
 
     // Deduct $5 from balance

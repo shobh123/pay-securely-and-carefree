@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
 export interface Complaint {
   id: string;
@@ -81,7 +81,23 @@ const initialComplaints: Complaint[] = [
 ];
 
 export const ComplaintsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [complaints, setComplaints] = useState<Complaint[]>(initialComplaints);
+  const [complaints, setComplaints] = useState<Complaint[]>(() => {
+    try {
+      const stored = localStorage.getItem('complaints');
+      if (stored) return JSON.parse(stored) as Complaint[];
+    } catch {
+      // ignore
+    }
+    return initialComplaints;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('complaints', JSON.stringify(complaints));
+    } catch {
+      // ignore
+    }
+  }, [complaints]);
 
   const addComplaint: ComplaintsContextType['addComplaint'] = (complaintInput) => {
     const newComplaint: Complaint = {
