@@ -134,6 +134,17 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
       status: 'completed'
     });
 
+    // Update recent contacts for selected contact
+    if (selectedMethod === 'contacts' && selectedContactData) {
+      setRecentContacts(prev => {
+        const updated = prev.map(c => c.id === selectedContactData.id ? { ...c, lastSent: `$${amountNumber.toFixed(2)}` } : c);
+        // Move selected contact to top
+        const selected = updated.find(c => c.id === selectedContactData.id)!;
+        const rest = updated.filter(c => c.id !== selectedContactData.id);
+        return [selected, ...rest];
+      });
+    }
+
     setTimeout(() => {
       toast({ title: "Money Sent Successfully", description: `$${amountNumber.toFixed(2)} has been sent to ${recipientLabel}` });
       setAmount('');
@@ -381,6 +392,9 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
           <ReviewSystem 
             recipientId={selectedContactData.id}
             recipientName={selectedContactData.name}
+            onReviewsUpdated={(avg, count) => {
+              setRecentContacts(prev => prev.map(c => c.id === selectedContactData.id ? { ...c, rating: Number(avg.toFixed(1)), reviewCount: count } : c));
+            }}
           />
         )}
 

@@ -15,6 +15,11 @@ import {
   ArrowDownRight
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useTransaction } from '@/contexts/TransactionContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface DashboardProps {
   onNavigate?: (tab: 'home' | 'send' | 'scan' | 'history' | 'profile') => void;
@@ -23,13 +28,65 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const { user } = useAuth();
   const [balanceVisible, setBalanceVisible] = useState(true);
+  const [addMoneyOpen, setAddMoneyOpen] = useState(false);
+  const [cardsOpen, setCardsOpen] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState('');
+  const { transactions, addTransaction, creditBalance } = useTransaction();
+  const { toast } = useToast();
 
-  const recentTransactions = [
-    { id: 1, type: 'received', amount: 150.00, from: 'Sarah Johnson', time: '2 hours ago', category: 'Food' },
-    { id: 2, type: 'sent', amount: 45.99, to: 'Uber Eats', time: '5 hours ago', category: 'Food' },
-    { id: 3, type: 'received', amount: 500.00, from: 'John Doe', time: '1 day ago', category: 'Transfer' },
-    { id: 4, type: 'sent', amount: 89.50, to: 'Amazon', time: '2 days ago', category: 'Shopping' },
-  ];
+  const recentTransactions = transactions.slice(0, 4).map((t, idx) => ({
+    id: idx,
+    type: t.type,
+    amount: t.amount,
+    from: t.sender,
+    to: t.recipient,
+    time: new Date(t.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+    category: t.category
+  }));
+
+  // Demo cards state
+  const [cards, setCards] = useState<Array<{id:string; brand:string; last4:string; name:string}>>([
+    { id: 'c1', brand: 'Visa', last4: '4242', name: 'Personal' },
+    { id: 'c2', brand: 'Mastercard', last4: '4444', name: 'Business' },
+    { id: 'c3', brand: 'Amex', last4: '0005', name: 'Travel' },
+  ]);
+  const [newCardBrand, setNewCardBrand] = useState('Visa');
+  const [newCardLast4, setNewCardLast4] = useState('');
+  const [newCardName, setNewCardName] = useState('');
+
+  const handleAddMoney = async () => {
+    const amt = parseFloat(topUpAmount);
+    if (isNaN(amt) || amt <= 0) {
+      toast({ title: 'Invalid amount', description: 'Enter a valid top-up amount.', variant: 'destructive' });
+      return;
+    }
+    const ok = await creditBalance(amt);
+    if (ok) {
+      addTransaction({
+        type: 'received',
+        amount: amt,
+        sender: 'Add Money',
+        description: 'Balance top-up',
+        category: 'Transfer',
+        status: 'completed'
+      });
+      toast({ title: 'Money added', description: `$${amt.toFixed(2)} added to your balance.` });
+      setTopUpAmount('');
+      setAddMoneyOpen(false);
+    }
+  };
+
+  const handleAddCard = () => {
+    if (!newCardLast4 || newCardLast4.length !== 4) {
+      toast({ title: 'Invalid card', description: 'Enter last 4 digits.', variant: 'destructive' });
+      return;
+    }
+    const id = Math.random().toString(36).slice(2);
+    setCards(prev => [{ id, brand: newCardBrand, last4: newCardLast4, name: newCardName || newCardBrand }, ...prev]);
+    setNewCardBrand('Visa');
+    setNewCardLast4('');
+    setNewCardName('');
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 overflow-y-auto">
@@ -68,14 +125,69 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               {balanceVisible ? `$${user?.balance?.toFixed(2) || '0.00'}` : '••••••'}
             </div>
             <div className="flex gap-3">
-              <Button size="sm" className="bg-white/20 hover:bg-white/30 border-0">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Money
-              </Button>
-              <Button size="sm" className="bg-white/20 hover:bg-white/30 border-0">
-                <CreditCard className="w-4 h-4 mr-2" />
-                Cards
-              </Button>
+              <Dialog open={addMoneyOpen} onOpenChange={setAddMoneyOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="bg-white/20 hover:bg-white/30 border-0">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Money
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add Money</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-3">
+                    <Label>Amount</Label>
+                    <Input type="number" placeholder="0.00" value={topUpAmount} onChange={e=>setTopUpAmount(e.target.value)} />
+                    <Button onClick={handleAddMoney}>Confirm Top-up</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              <Dialog open={cardsOpen} onOpenChange={setCardsOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="bg-white/20 hover:bg-white/30 border-0">
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    Cards
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Payment Methods</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      {cards.map(card => (
+                        <div key={card.id} className="flex items-center justify-between p-3 rounded-lg border">
+                          <div>
+                            <p className="font-medium text-sm">{card.brand} •••• {card.last4}</p>
+                            <p className="text-xs text-gray-500">{card.name}</p>
+                          </div>
+                          <Badge variant="secondary">Default</Badge>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="col-span-1">
+                        <Label>Brand</Label>
+                        <select className="mt-1 w-full border rounded h-9 px-2" value={newCardBrand} onChange={e=>setNewCardBrand(e.target.value)}>
+                          <option>Visa</option>
+                          <option>Mastercard</option>
+                          <option>Amex</option>
+                        </select>
+                      </div>
+                      <div>
+                        <Label>Last 4</Label>
+                        <Input placeholder="1234" maxLength={4} value={newCardLast4} onChange={e=>setNewCardLast4(e.target.value.replace(/\D/g,''))} />
+                      </div>
+                      <div>
+                        <Label>Name</Label>
+                        <Input placeholder="Label" value={newCardName} onChange={e=>setNewCardName(e.target.value)} />
+                      </div>
+                    </div>
+                    <Button onClick={handleAddCard} variant="outline">Add Card</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </CardContent>
         </Card>
@@ -150,8 +262,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                   <div>
                     <p className="font-medium text-sm">
                       {transaction.type === 'received' 
-                        ? `From ${transaction.from}` 
-                        : `To ${transaction.to}`}
+                        ? `From ${transaction.from || 'Unknown'}` 
+                        : `To ${transaction.to || 'Unknown'}`}
                     </p>
                     <div className="flex items-center gap-2">
                       <p className="text-xs text-gray-500">{transaction.time}</p>

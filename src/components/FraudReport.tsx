@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertTriangle, Shield, FileText, CreditCard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useComplaints } from '@/contexts/ComplaintContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface FraudReportProps {
   recipientId: string;
@@ -26,6 +27,7 @@ const FraudReport: React.FC<FraudReportProps> = ({ recipientId, recipientName, a
   const { toast } = useToast();
   const { addComplaint } = useComplaints();
   const [open, setOpen] = useState(false);
+  const { user, updateProfile } = useAuth();
 
   const reportTypes = [
     { value: 'fraud', label: 'Fraudulent Activity' },
@@ -49,9 +51,14 @@ const FraudReport: React.FC<FraudReportProps> = ({ recipientId, recipientName, a
     setIsSubmitting(true);
 
     // Simulate API call
-    setTimeout(() => {
+    setTimeout(async () => {
+      // Deduct $5 processing fee if possible
+      if (user && user.balance >= 5) {
+        await updateProfile({ balance: user.balance - 5 });
+      }
+
       addComplaint({
-        description: `${reportType.toUpperCase()}: ${description} (Recipient: ${recipientName}, Amount: ${amount}, ID: ${recipientId})`,
+        description: `${reportType.toUpperCase()}: ${description} (Recipient: ${recipientName}, Amount: $${amount}, ID: ${recipientId})`,
         replyFromAuthority: 'Complaint received and under review. Initial assessment in progress.',
         status: 'Pending',
         investigationDetails: {
@@ -66,7 +73,7 @@ const FraudReport: React.FC<FraudReportProps> = ({ recipientId, recipientName, a
 
       toast({
         title: "Report Submitted Successfully",
-        description: "Your fraud report has been submitted to authorities. The ₹500 processing fee will be charged to your account.",
+        description: "Your fraud report has been submitted to authorities. A $5 processing fee will be charged to your account.",
       });
 
       // Reset form and close dialog
@@ -103,7 +110,7 @@ const FraudReport: React.FC<FraudReportProps> = ({ recipientId, recipientName, a
                 <div className="text-sm">
                   <p className="font-medium text-orange-800 mb-1">Important Notice</p>
                   <p className="text-orange-700">
-                    A processing fee of <strong>₹500</strong> will be charged for fraud reports. 
+                    A processing fee of <strong>$5</strong> will be charged for fraud reports. 
                     This helps us maintain the integrity of our investigation process.
                   </p>
                 </div>
@@ -120,7 +127,7 @@ const FraudReport: React.FC<FraudReportProps> = ({ recipientId, recipientName, a
               </h4>
               <div className="space-y-1 text-sm">
                 <p><span className="font-medium">Recipient:</span> {recipientName}</p>
-                <p><span className="font-medium">Amount:</span> ₹{amount}</p>
+                <p><span className="font-medium">Amount:</span> ${amount}</p>
                 <p><span className="font-medium">ID:</span> {recipientId}</p>
               </div>
             </CardContent>
@@ -187,7 +194,7 @@ const FraudReport: React.FC<FraudReportProps> = ({ recipientId, recipientName, a
           <div className="flex items-center justify-between p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <span className="text-sm font-medium">Processing Fee:</span>
             <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-              ₹500.00
+              $5.00
             </Badge>
           </div>
 
@@ -197,7 +204,7 @@ const FraudReport: React.FC<FraudReportProps> = ({ recipientId, recipientName, a
             disabled={isSubmitting || !reportType || !description}
             className="w-full bg-red-600 hover:bg-red-700"
           >
-            {isSubmitting ? 'Submitting Report...' : 'Submit Fraud Report (₹500)'}
+            {isSubmitting ? 'Submitting Report...' : 'Submit Fraud Report ($5)'}
           </Button>
 
           <p className="text-xs text-gray-500 text-center">
