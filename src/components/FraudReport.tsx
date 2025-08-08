@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertTriangle, Shield, FileText, CreditCard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useComplaints } from '@/contexts/ComplaintContext';
 
 interface FraudReportProps {
   recipientId: string;
@@ -22,6 +24,8 @@ const FraudReport: React.FC<FraudReportProps> = ({ recipientId, recipientName, a
   const [evidence, setEvidence] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const { addComplaint } = useComplaints();
+  const [open, setOpen] = useState(false);
 
   const reportTypes = [
     { value: 'fraud', label: 'Fraudulent Activity' },
@@ -46,21 +50,36 @@ const FraudReport: React.FC<FraudReportProps> = ({ recipientId, recipientName, a
 
     // Simulate API call
     setTimeout(() => {
+      addComplaint({
+        description: `${reportType.toUpperCase()}: ${description} (Recipient: ${recipientName}, Amount: ${amount}, ID: ${recipientId})`,
+        replyFromAuthority: 'Complaint received and under review. Initial assessment in progress.',
+        status: 'Pending',
+        investigationDetails: {
+          assignedOfficer: 'Not yet assigned',
+          caseNumber: 'Pending assignment',
+          evidence: evidence ? [evidence] : [],
+          timeline: [
+            { date: new Date().toISOString().split('T')[0], action: 'Complaint submitted', officer: 'System' }
+          ]
+        }
+      });
+
       toast({
         title: "Report Submitted Successfully",
         description: "Your fraud report has been submitted to authorities. The ₹500 processing fee will be charged to your account.",
       });
-      
-      // Reset form
+
+      // Reset form and close dialog
       setReportType('');
       setDescription('');
       setEvidence('');
       setIsSubmitting(false);
+      setOpen(false);
     }, 2000);
   };
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50">
           <AlertTriangle className="w-4 h-4 mr-2" />

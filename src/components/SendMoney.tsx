@@ -25,6 +25,7 @@ import FraudReport from './FraudReport';
 import ComplaintStatus from './ComplaintStatus';
 import { useTransaction } from '@/contexts/TransactionContext';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 interface SendMoneyProps {
   onBack: () => void;
@@ -39,136 +40,111 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
   const { addTransaction, deductBalance } = useTransaction();
   const { toast } = useToast();
 
-  const recentContacts = [
-    { 
-      id: '1', 
-      name: 'Sarah Johnson', 
-      email: 'sarah@email.com', 
-      avatar: 'SJ', 
-      lastSent: '$50.00',
-      rating: 4.5,
-      reviewCount: 12,
-      trustScore: 'high',
-      spamCount: 0,
-      fraudCount: 0,
-      criminalCount: 0
-    },
-    { 
-      id: '2', 
-      name: 'John Doe', 
-      email: 'john@email.com', 
-      avatar: 'JD', 
-      lastSent: '$125.00',
-      rating: 2.1,
-      reviewCount: 8,
-      trustScore: 'low',
-      flagged: true,
-      spamCount: 2,
-      fraudCount: 1,
-      criminalCount: 0
-    },
-    { 
-      id: '3', 
-      name: 'Emma Wilson', 
-      email: 'emma@email.com', 
-      avatar: 'EW', 
-      lastSent: '$25.00',
-      rating: 4.8,
-      reviewCount: 25,
-      trustScore: 'high',
-      spamCount: 0,
-      fraudCount: 0,
-      criminalCount: 0
-    },
-    { 
-      id: '4', 
-      name: 'Mike Chen', 
-      email: 'mike@email.com', 
-      avatar: 'MC', 
-      lastSent: '$75.00',
-      rating: 3.2,
-      reviewCount: 5,
-      trustScore: 'medium',
-      spamCount: 1,
-      fraudCount: 0,
-      criminalCount: 1
-    },
-    { 
-      id: '5', 
-      name: 'Lisa Anderson', 
-      email: 'lisa@email.com', 
-      avatar: 'LA', 
-      lastSent: '$200.00',
-      rating: 4.7,
-      reviewCount: 18,
-      trustScore: 'high',
-      spamCount: 0,
-      fraudCount: 0,
-      criminalCount: 0
-    },
-  ];
+  type Contact = { 
+    id: string; name: string; email: string; avatar: string; lastSent: string; rating: number; reviewCount: number; trustScore: 'high'|'medium'|'low'; flagged?: boolean; spamCount: number; fraudCount: number; criminalCount: number; 
+  };
+
+  const [recentContacts, setRecentContacts] = useState<Contact[]>([
+    { id: '1', name: 'Sarah Johnson', email: 'sarah@email.com', avatar: 'SJ', lastSent: '$50.00', rating: 4.5, reviewCount: 12, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0 },
+    { id: '2', name: 'John Doe', email: 'john@email.com', avatar: 'JD', lastSent: '$125.00', rating: 2.1, reviewCount: 8, trustScore: 'low', flagged: true, spamCount: 2, fraudCount: 1, criminalCount: 0 },
+    { id: '3', name: 'Emma Wilson', email: 'emma@email.com', avatar: 'EW', lastSent: '$25.00', rating: 4.8, reviewCount: 25, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0 },
+    { id: '4', name: 'Mike Chen', email: 'mike@email.com', avatar: 'MC', lastSent: '$75.00', rating: 3.2, reviewCount: 5, trustScore: 'medium', spamCount: 1, fraudCount: 0, criminalCount: 1 },
+    { id: '5', name: 'Lisa Anderson', email: 'lisa@email.com', avatar: 'LA', lastSent: '$200.00', rating: 4.7, reviewCount: 18, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0 },
+  ]);
+
+  const [addContactOpen, setAddContactOpen] = useState(false);
+  const [newContactName, setNewContactName] = useState('');
+  const [newContactEmail, setNewContactEmail] = useState('');
+
+  const [selectedMethod, setSelectedMethod] = useState<'contacts'|'phone'|'upi'|'bank'>('contacts');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [upiId, setUpiId] = useState('');
+  const [bankAccount, setBankAccount] = useState('');
+  const [ifsc, setIfsc] = useState('');
 
   const selectedContactData = recentContacts.find(contact => contact.id === selectedContact);
 
+  const handleAddContact = () => {
+    if (!newContactName || !newContactEmail) return;
+    const id = Math.random().toString(36).slice(2);
+    setRecentContacts(prev => [
+      { id, name: newContactName, email: newContactEmail, avatar: newContactName.split(' ').map(n=>n[0]).join('').toUpperCase(), lastSent: '$0.00', rating: 0, reviewCount: 0, trustScore: 'high', spamCount: 0, fraudCount: 0, criminalCount: 0 },
+      ...prev
+    ]);
+    setNewContactName('');
+    setNewContactEmail('');
+    setAddContactOpen(false);
+  };
+
   const handleSendMoney = async () => {
-    if (!amount || !selectedContact || !selectedContactData) {
-      toast({
-        title: "Missing Information",
-        description: "Please enter an amount and select a recipient.",
-        variant: "destructive"
-      });
+    if (!amount) {
+      toast({ title: "Missing Amount", description: "Please enter an amount.", variant: "destructive" });
       return;
     }
 
     const amountNumber = parseFloat(amount);
     if (isNaN(amountNumber) || amountNumber <= 0) {
-      toast({
-        title: "Invalid Amount",
-        description: "Please enter a valid amount.",
-        variant: "destructive"
-      });
+      toast({ title: "Invalid Amount", description: "Please enter a valid amount.", variant: "destructive" });
       return;
+    }
+
+    // Validate destination
+    let recipientLabel: string | null = null;
+    if (selectedMethod === 'contacts') {
+      if (!selectedContact || !selectedContactData) {
+        toast({ title: "Missing Recipient", description: "Please select a contact.", variant: "destructive" });
+        return;
+      }
+      recipientLabel = selectedContactData.name;
+    } else if (selectedMethod === 'phone') {
+      if (!phoneNumber || phoneNumber.length < 8) {
+        toast({ title: "Invalid Phone Number", description: "Enter a valid phone number.", variant: "destructive" });
+        return;
+      }
+      recipientLabel = `Phone: ${phoneNumber}`;
+    } else if (selectedMethod === 'upi') {
+      if (!upiId || !upiId.includes('@')) {
+        toast({ title: "Invalid UPI ID", description: "Enter a valid UPI ID (e.g., name@bank).", variant: "destructive" });
+        return;
+      }
+      recipientLabel = `UPI: ${upiId}`;
+    } else if (selectedMethod === 'bank') {
+      if (!bankAccount || bankAccount.length < 6 || !ifsc) {
+        toast({ title: "Invalid Bank Details", description: "Enter valid account number and IFSC.", variant: "destructive" });
+        return;
+      }
+      recipientLabel = `A/C ${bankAccount} (${ifsc})`;
     }
 
     setIsSubmitting(true);
 
-    // Attempt to deduct balance
     const success = deductBalance(amountNumber);
     if (!success) {
-      toast({
-        title: "Insufficient Balance",
-        description: "You don't have enough balance for this transaction.",
-        variant: "destructive"
-      });
+      toast({ title: "Insufficient Balance", description: "You don't have enough balance for this transaction.", variant: "destructive" });
       setIsSubmitting(false);
       return;
     }
 
-    // Add transaction to history
     addTransaction({
       type: 'sent',
       amount: amountNumber,
-      recipient: selectedContactData.name,
-      description: note || `Money sent to ${selectedContactData.name}`,
+      recipient: recipientLabel || 'Recipient',
+      description: note || `Money sent to ${recipientLabel}`,
       category: 'Transfer',
       status: 'completed'
     });
 
-    // Simulate processing delay
     setTimeout(() => {
-      toast({
-        title: "Money Sent Successfully",
-        description: `$${amountNumber.toFixed(2)} has been sent to ${selectedContactData.name}`,
-      });
-      
-      // Reset form
+      toast({ title: "Money Sent Successfully", description: `$${amountNumber.toFixed(2)} has been sent to ${recipientLabel}` });
       setAmount('');
       setNote('');
       setSelectedContact(null);
       setShowReviews(false);
       setIsSubmitting(false);
-      
-      // Navigate back to home
+      setPhoneNumber('');
+      setUpiId('');
+      setBankAccount('');
+      setIfsc('');
       onBack();
     }, 2000);
   };
@@ -186,9 +162,7 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
     return Array.from({ length: 5 }, (_, index) => (
       <Star
         key={index}
-        className={`w-3 h-3 ${
-          index < Math.floor(rating) ? 'text-yellow-400 fill-current' : 'text-gray-300'
-        }`}
+        className={`w-3 h-3 ${index < Math.floor(rating) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
       />
     ));
   };
@@ -196,7 +170,7 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
   const quickAmounts = [10, 25, 50, 100];
 
   return (
-    <div className="bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 overflow-y-auto">
       <div className="container mx-auto px-4 py-6 max-w-md min-h-full pb-20">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
@@ -242,27 +216,59 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
 
         {/* Send Methods */}
         <div className="grid grid-cols-3 gap-3 mb-6">
-          <Card className="cursor-pointer hover:shadow-md transition-shadow">
+          <Card className={`cursor-pointer hover:shadow-md transition-shadow ${selectedMethod === 'phone' ? 'ring-2 ring-green-400' : ''}`} onClick={() => setSelectedMethod('phone')}>
             <CardContent className="p-4 text-center">
               <Phone className="w-6 h-6 mx-auto mb-2 text-green-600" />
               <p className="text-xs font-medium">Phone Number</p>
             </CardContent>
           </Card>
           
-          <Card className="cursor-pointer hover:shadow-md transition-shadow">
+          <Card className={`cursor-pointer hover:shadow-md transition-shadow ${selectedMethod === 'upi' ? 'ring-2 ring-orange-400' : ''}`} onClick={() => setSelectedMethod('upi')}>
             <CardContent className="p-4 text-center">
               <Zap className="w-6 h-6 mx-auto mb-2 text-orange-600" />
               <p className="text-xs font-medium">UPI</p>
             </CardContent>
           </Card>
           
-          <Card className="cursor-pointer hover:shadow-md transition-shadow">
+          <Card className={`cursor-pointer hover:shadow-md transition-shadow ${selectedMethod === 'bank' ? 'ring-2 ring-blue-400' : ''}`} onClick={() => setSelectedMethod('bank')}>
             <CardContent className="p-4 text-center">
               <CreditCard className="w-6 h-6 mx-auto mb-2 text-blue-600" />
               <p className="text-xs font-medium">Bank Account</p>
             </CardContent>
           </Card>
         </div>
+
+        {/* Method-specific Inputs */}
+        {selectedMethod === 'phone' && (
+          <Card className="mb-6">
+            <CardContent className="p-4">
+              <Label className="text-sm font-medium">Phone Number</Label>
+              <Input placeholder="Enter phone number" value={phoneNumber} onChange={(e)=>setPhoneNumber(e.target.value)} className="mt-2" />
+            </CardContent>
+          </Card>
+        )}
+        {selectedMethod === 'upi' && (
+          <Card className="mb-6">
+            <CardContent className="p-4">
+              <Label className="text-sm font-medium">UPI ID</Label>
+              <Input placeholder="e.g., name@bank" value={upiId} onChange={(e)=>setUpiId(e.target.value)} className="mt-2" />
+            </CardContent>
+          </Card>
+        )}
+        {selectedMethod === 'bank' && (
+          <Card className="mb-6">
+            <CardContent className="p-4 space-y-3">
+              <div>
+                <Label className="text-sm font-medium">Account Number</Label>
+                <Input placeholder="Enter account number" value={bankAccount} onChange={(e)=>setBankAccount(e.target.value)} className="mt-2" />
+              </div>
+              <div>
+                <Label className="text-sm font-medium">IFSC</Label>
+                <Input placeholder="Enter IFSC" value={ifsc} onChange={(e)=>setIfsc(e.target.value)} className="mt-2" />
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Search */}
         <div className="relative mb-6">
@@ -275,14 +281,38 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
 
         {/* Recent Contacts */}
         <Card className="mb-6">
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-3 flex items-center justify-between">
             <CardTitle className="text-lg">Recent Contacts</CardTitle>
+            <Dialog open={addContactOpen} onOpenChange={setAddContactOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Plus className="w-4 h-4 mr-1" /> Add
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Contact</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div>
+                    <Label>Name</Label>
+                    <Input value={newContactName} onChange={(e)=>setNewContactName(e.target.value)} placeholder="Full name" />
+                  </div>
+                  <div>
+                    <Label>Email</Label>
+                    <Input value={newContactEmail} onChange={(e)=>setNewContactEmail(e.target.value)} placeholder="Email address" />
+                  </div>
+                  <Button onClick={handleAddContact} disabled={!newContactName || !newContactEmail} className="w-full">Add Contact</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </CardHeader>
           <CardContent className="space-y-3">
             {recentContacts.map((contact) => (
               <div
                 key={contact.id}
                 onClick={() => {
+                  setSelectedMethod('contacts');
                   setSelectedContact(contact.id);
                   setShowReviews(true);
                 }}
@@ -343,19 +373,6 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
                 </div>
               </div>
             ))}
-            
-            {/* Add New Contact Button */}
-            <div className="p-3 rounded-lg border-2 border-dashed border-gray-300 hover:border-purple-300 cursor-pointer transition-colors">
-              <div className="flex items-center justify-center gap-3">
-                <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                  <Plus className="w-5 h-5 text-gray-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-sm text-gray-700">Add New Contact</p>
-                  <p className="text-xs text-gray-500">Add someone to your contacts</p>
-                </div>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
@@ -404,7 +421,7 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
           
           <Button 
             className="w-full h-12 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-            disabled={!amount || !selectedContact || isSubmitting}
+            disabled={!amount || isSubmitting || (selectedMethod === 'contacts' && !selectedContact) || (selectedMethod === 'phone' && !phoneNumber) || (selectedMethod === 'upi' && !upiId) || (selectedMethod === 'bank' && (!bankAccount || !ifsc))}
             onClick={handleSendMoney}
           >
             <Send className="w-5 h-5 mr-2" />

@@ -14,7 +14,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ onBack }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
   return (
-    <div className="bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 overflow-y-auto">
       <div className="container mx-auto px-4 py-6 max-w-md min-h-full pb-20">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">

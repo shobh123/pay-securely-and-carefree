@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Star, AlertTriangle, Shield, Flag, Zap, CreditCard, UserX } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Review {
   id: string;
@@ -32,9 +33,11 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName 
   const [hoveredStar, setHoveredStar] = useState(0);
   const [selectedCategories, setSelectedCategories] = useState<('spam' | 'fraud' | 'criminal')[]>([]);
   const { toast } = useToast();
+  const { user, updateProfile } = useAuth();
+  const [open, setOpen] = useState(false);
 
   // Mock reviews data
-  const [reviews] = useState<Review[]>([
+  const [reviews, setReviews] = useState<Review[]>([
     {
       id: '1',
       userId: 'user1',
@@ -100,7 +103,7 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName 
     );
   };
 
-  const handleSubmitReview = () => {
+  const handleSubmitReview = async () => {
     if (rating === 0) {
       toast({
         title: "Rating Required",
@@ -110,15 +113,45 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName 
       return;
     }
 
-    // Simulate $5 deduction from account balance
+    // Deduct $5 from balance
+    if (user && user.balance >= 5) {
+      await updateProfile({ balance: user.balance - 5 });
+    }
+
+    const now = new Date().toISOString().split('T')[0];
+    const currentUserName = user?.name || 'You';
+    const currentUserId = user?.id || 'current-user';
+
+    setReviews(prev => {
+      const existingIndex = prev.findIndex(r => r.userId === currentUserId);
+      const updated: Review = {
+        id: existingIndex >= 0 ? prev[existingIndex].id : Math.random().toString(36).slice(2),
+        userId: currentUserId,
+        userName: currentUserName,
+        rating,
+        comment,
+        date: now,
+        verified: true,
+        categories: selectedCategories.length ? selectedCategories : undefined
+      };
+      if (existingIndex >= 0) {
+        const copy = [...prev];
+        copy[existingIndex] = updated;
+        return copy;
+      }
+      return [updated, ...prev];
+    });
+
     toast({
       title: "Review Submitted Successfully",
       description: "Thank you for your feedback! $5 has been deducted from your account balance."
     });
 
+    // Reset and close dialog
     setRating(0);
     setComment('');
     setSelectedCategories([]);
+    setOpen(false);
   };
 
   const renderStars = (currentRating: number, interactive = false) => {
@@ -228,18 +261,17 @@ const ReviewSystem: React.FC<ReviewSystemProps> = ({ recipientId, recipientName 
           ))}
         </div>
 
-        {/* Add Review */}
-        <Dialog>
+        {/* Add / Edit Review */}
+        <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button variant="outline" className="w-full">
-              Write a Review
+              {reviews.some(r => r.userId === (user?.id || 'current-user')) ? 'Edit Your Review' : 'Write a Review'}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Review {recipientName}</DialogTitle>
             </DialogHeader>
-            
             {/* Review Charge Disclaimer */}
             <div className="flex items-start gap-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
               <AlertTriangle className="w-5 h-5 text-orange-600 mt-0.5" />
