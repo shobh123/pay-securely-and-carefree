@@ -277,7 +277,7 @@ const SendMoney: React.FC<SendMoneyProps> = ({ onBack }) => {
       setUpiId('');
       setBankAccount('');
       setIfsc('');
-      onBack();
+      // Stay on this page to allow immediate review
     }, 2000);
   };
 
